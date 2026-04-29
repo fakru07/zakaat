@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zakaat Survey App</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <div id="loginPage" class="login-container center">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>Welcome Back</h2>
+                <p>Login to manage the survey</p>
+            </div>
+            <div class="input-group">
+                <input id="username" placeholder="Username">
+            </div>
+            <div class="input-group">
+                <input id="password" type="password" placeholder="Password" onkeypress="if(event.key === 'Enter') login()">
+            </div>
+            <button class="btn-primary login-btn" onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="app" style="display:none;">
+        <header class="app-header">
+            <div class="header-content">
+                <h1>Zakaat Survey</h1>
+                <button class="btn-outline" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <!-- DASHBOARD -->
+            <div class="dashboard card" id="dashboardSection">
+                <div class="dashboard-header">
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; flex: 1;">
+                        <h2>Dashboard</h2>
+                        <input id="searchInput" type="text" placeholder="Search name, phone, aadhar..." oninput="searchFamilies()" style="flex: 1; min-width: 200px; max-width: 300px; padding: 0.5rem 1rem; border-radius: 20px;">
+                    </div>
+                    <div class="dashboard-actions">
+                        <input type="file" id="csvFileInput" accept=".csv" onchange="loadCSV(event)" style="display: none;">
+                        <button class="btn-secondary" onclick="document.getElementById('csvFileInput').click()">Import CSV</button>
+                        <button class="btn-secondary" onclick="downloadCSV()">Export CSV</button>
+                        <button class="btn-primary" onclick="toggleForm()">+ New Family</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-content">
+                    <!-- Sidebar for Streets -->
+                    <div class="sidebar">
+                        <h3>Streets</h3>
+                        <div id="streets" class="pill-container"></div>
+                    </div>
+
+                    <!-- Main content area for families and details -->
+                    <div class="data-area">
+                        <div id="families" class="families-grid"></div>
+                        <div id="details" class="details-panel"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FORM -->
+            <div class="form-container card" id="formSection" style="display:none;">
+                <div class="form-header">
+                    <h2>Add New Family</h2>
+                    <button class="close-btn" onclick="toggleForm()">&times;</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Family Head Name</label>
+                        <input id="headName" placeholder="Enter full name">
+                    </div>
+                    <div class="input-group">
+                        <label>Phone Number</label>
+                        <input id="phone" type="tel" placeholder="10-digit number">
+                    </div>
+                    <div class="input-group">
+                        <label>Street</label>
+                        <input id="street" placeholder="Street name">
+                    </div>
+                    <div class="input-group">
+                        <label>Address</label>
+                        <input id="address" placeholder="House no, details">
+                    </div>
+                    <div class="input-group">
+                        <label>Aadhar No</label>
+                        <input id="aadhar" placeholder="12-digit Aadhar">
+                    </div>
+                    <div class="input-group">
+                        <label>Ration Card</label>
+                        <input id="ration" placeholder="Ration card no">
+                    </div>
+                    <div class="input-group">
+                        <label>Education</label>
+                        <input id="education" placeholder="E.g., B.Tech, 10th Pass, None">
+                    </div>
+                </div>
+
+                <div class="form-row split">
+                    <div class="input-group">
+                        <label>Working Abroad?</label>
+                        <select id="abroad" onchange="toggleCountry()">
+                            <option>No</option>
+                            <option>Yes</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="countryGroup" style="display:none;">
+                        <label>Country</label>
+                        <input id="country" list="countryList" placeholder="Search and select country" autocomplete="off">
+                        <datalist id="countryList"></datalist>
+                    </div>
+                </div>
+
+                <div class="form-row split">
+                    <div class="input-group">
+                        <label>Eligible to Give Zakaat?</label>
+                        <select id="zakatGive">
+                            <option>No</option>
+                            <option>Yes</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Eligible to Receive Zakaat?</label>
+                        <select id="zakatReceive">
+                            <option>No</option>
+                            <option>Yes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="members-section">
+                    <div class="members-header">
+                        <h3>Family Members</h3>
+                        <button class="btn-secondary btn-small" onclick="addMember()">+ Add Member</button>
+                    </div>
+                    <div id="members"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-outline" onclick="toggleForm()">Cancel</button>
+                    <button class="btn-primary" onclick="saveFamily()">Save Family</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
