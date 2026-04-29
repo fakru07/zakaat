@@ -34,7 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // DEFAULT USER SETUP
-    if (!localStorage.getItem("user")) {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser || !JSON.parse(storedUser).username) {
         localStorage.setItem("user", JSON.stringify({
             username: "admin",
             password: "1234"
