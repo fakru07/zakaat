@@ -4,21 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zakaat Survey App</title>
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
 </head>
 <body>
-
-    <!-- LOGIN -->
     <div id="loginPage" class="login-container center">
         <div class="login-card">
             <div class="login-header">
@@ -35,7 +29,6 @@
         </div>
     </div>
 
-    <!-- APP -->
     <div id="app" style="display:none;">
         <header class="app-header">
             <div class="header-content">
@@ -45,7 +38,6 @@
         </header>
 
         <div class="main-container">
-            <!-- DASHBOARD -->
             <div class="dashboard card" id="dashboardSection">
                 <div class="dashboard-header">
                     <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; flex: 1;">
@@ -61,13 +53,11 @@
                 </div>
 
                 <div class="dashboard-content">
-                    <!-- Sidebar for Streets -->
                     <div class="sidebar">
                         <h3>Streets</h3>
                         <div id="streets" class="pill-container"></div>
                     </div>
 
-                    <!-- Main content area for families and details -->
                     <div class="data-area">
                         <div id="families" class="families-grid"></div>
                         <div id="details" class="details-panel"></div>
@@ -75,7 +65,6 @@
                 </div>
             </div>
 
-            <!-- FORM -->
             <div class="form-container card" id="formSection" style="display:none;">
                 <div class="form-header">
                     <h2>Add New Family</h2>
@@ -158,10 +147,7 @@
                     <button class="btn-primary" onclick="saveFamily()">Save Family</button>
                 </div>
             </div>
-
         </div>
     </div>
-
-    <script src="app.js"></script>
 </body>
 </html>
