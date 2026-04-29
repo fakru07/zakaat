@@ -33,13 +33,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // DEFAULT USER SETUP
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser || !JSON.parse(storedUser).username) {
-        localStorage.setItem("user", JSON.stringify({
-            username: "admin",
-            password: "1234"
-        }));
+    // INITIALIZE CLOUD ADMIN USER IF NEEDED
+    try {
+        const userDoc = await db.collection("users").doc("admin").get();
+        if (!userDoc.exists) {
+            await db.collection("users").doc("admin").set({
+                password: "1234",
+                role: "Administrator"
+            });
+            console.log("Default admin created in Firestore");
+        }
+    } catch (err) {
+        console.error("Could not check/create users table in Firestore:", err);
     }
 
     // FETCH DATA FROM FIRESTORE
@@ -63,22 +68,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-function login() {
+async function login() {
     const u = document.getElementById("username").value.trim();
     const p = document.getElementById("password").value.trim();
-    const user = JSON.parse(localStorage.getItem("user"));
+    
+    if (!u || !p) {
+        alert("Please enter both username and password.");
+        return;
+    }
 
-    if (u === user.username && p === user.password) {
-        sessionStorage.setItem("isLoggedIn", "true");
-        document.getElementById("loginPage").style.display = "none";
-        document.getElementById("app").style.display = "block";
-        
-        // Clear password field for security
-        document.getElementById("password").value = "";
-        
-        renderDashboard();
-    } else {
-        alert("Incorrect username or password.");
+    try {
+        const userDoc = await db.collection("users").doc(u).get();
+        if (userDoc.exists && userDoc.data().password === p) {
+            sessionStorage.setItem("isLoggedIn", "true");
+            document.getElementById("loginPage").style.display = "none";
+            document.getElementById("app").style.display = "block";
+            
+            // Clear password field for security
+            document.getElementById("password").value = "";
+            
+            renderDashboard();
+        } else {
+            alert("Incorrect username or password.");
+        }
+    } catch (err) {
+        console.error("Login error:", err);
+        alert("Login failed. Check your internet connection or Firestore rules.");
     }
 }
 
