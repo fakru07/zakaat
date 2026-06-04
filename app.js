@@ -116,6 +116,41 @@ function toggleCountry() {
     }
 }
 
+function calculateAgeFromDob(dobValue) {
+    if (!dobValue) return "";
+
+    const birthDate = new Date(`${dobValue}T00:00:00`);
+    if (Number.isNaN(birthDate.getTime())) return "";
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+
+    return age >= 0 ? age : "";
+}
+
+function updateHeadAge() {
+    const dobInput = document.getElementById("dob");
+    const ageInput = document.getElementById("age");
+    if (!dobInput || !ageInput) return;
+
+    ageInput.value = calculateAgeFromDob(dobInput.value);
+}
+
+function updateMemberAge(dobInput) {
+    const memberEntry = dobInput.closest(".member-entry");
+    if (!memberEntry) return;
+
+    const ageInput = memberEntry.querySelector(".m-age");
+    if (ageInput) {
+        ageInput.value = calculateAgeFromDob(dobInput.value);
+    }
+}
+
 function addMember() {
     const membersDiv = document.getElementById("members");
     const memberDiv = document.createElement("div");
@@ -129,7 +164,18 @@ function addMember() {
             <input type="text" placeholder="Relation (e.g., Wife, Son)" class="m-relation">
         </div>
         <div class="input-group">
-            <input type="number" placeholder="Age" class="m-age" min="0" max="150">
+            <input type="date" placeholder="Date of Birth" class="m-dob" onchange="updateMemberAge(this)" oninput="updateMemberAge(this)">
+        </div>
+        <div class="input-group">
+            <input type="number" placeholder="Age" class="m-age" min="0" max="150" readonly>
+        </div>
+        <div class="input-group">
+            <select class="m-aalima-haafiz">
+                <option>None</option>
+                <option>Aalima</option>
+                <option>Haafiz</option>
+                <option>Aalima &amp; Haafiz</option>
+            </select>
         </div>
         <div class="input-group">
             <input type="text" placeholder="Aadhar No" class="m-aadhar">
@@ -141,12 +187,17 @@ function addMember() {
 
 async function saveFamily() {
     const headName = document.getElementById("headName").value.trim();
+    const fatherName = document.getElementById("fatherName").value.trim();
+    const motherName = document.getElementById("motherName").value.trim();
+    const dob = document.getElementById("dob").value;
+    const age = parseInt(document.getElementById("age").value, 10) || calculateAgeFromDob(dob) || 0;
     const phone = document.getElementById("phone").value.trim();
     const street = document.getElementById("street").value.trim();
     const address = document.getElementById("address").value.trim();
     const aadhar = document.getElementById("aadhar").value.trim();
     const ration = document.getElementById("ration").value.trim();
     const education = document.getElementById("education").value.trim();
+    const aalimaHaafiz = document.getElementById("aalimaHaafiz").value;
     const abroad = document.getElementById("abroad").value;
     const country = document.getElementById("country").value.trim();
     const zakatGive = document.getElementById("zakatGive").value;
@@ -184,10 +235,13 @@ async function saveFamily() {
                 alert(`Aadhar number for member "${name}" must be exactly 12 digits.`);
                 hasMemberAadharError = true;
             }
+            const memberDob = el.querySelector(".m-dob").value;
             members.push({
                 name,
                 relation: el.querySelector(".m-relation").value.trim(),
-                age: parseInt(el.querySelector(".m-age").value.trim(), 10) || 0,
+                dob: memberDob,
+                age: parseInt(el.querySelector(".m-age").value.trim(), 10) || calculateAgeFromDob(memberDob) || 0,
+                aalimaHaafiz: el.querySelector(".m-aalima-haafiz").value,
                 aadhar: mAadhar
             });
         }
@@ -200,12 +254,17 @@ async function saveFamily() {
     const newFamily = {
         id: editFamilyId || Date.now().toString(),
         headName,
+        fatherName,
+        motherName,
+        dob,
+        age,
         phone,
         street,
         address,
         aadhar,
         ration,
         education,
+        aalimaHaafiz,
         abroad,
         country,
         zakatGive,
@@ -255,13 +314,14 @@ function clearForm() {
         headerTitle.textContent = "Add New Family";
     }
 
-    const fields = ["headName", "phone", "street", "address", "aadhar", "ration", "education", "country"];
+    const fields = ["headName", "fatherName", "motherName", "dob", "age", "phone", "street", "address", "aadhar", "ration", "education", "country"];
     fields.forEach((id) => {
         document.getElementById(id).value = "";
     });
 
     document.getElementById("abroad").value = "No";
     document.getElementById("countryGroup").style.display = "none";
+    document.getElementById("aalimaHaafiz").value = "None";
     document.getElementById("zakatGive").value = "No";
     document.getElementById("zakatReceive").value = "No";
     document.getElementById("members").innerHTML = "";
@@ -364,9 +424,18 @@ function searchFamilies() {
 
     const filtered = families.filter((f) =>
         (f.headName && f.headName.toLowerCase().includes(query)) ||
+        (f.fatherName && f.fatherName.toLowerCase().includes(query)) ||
+        (f.motherName && f.motherName.toLowerCase().includes(query)) ||
+        (f.aalimaHaafiz && f.aalimaHaafiz.toLowerCase().includes(query)) ||
         (f.phone && f.phone.includes(query)) ||
         (f.aadhar && f.aadhar.includes(query)) ||
-        (f.ration && f.ration.toLowerCase().includes(query))
+        (f.ration && f.ration.toLowerCase().includes(query)) ||
+        (Array.isArray(f.members) && f.members.some((m) =>
+            (m.name && m.name.toLowerCase().includes(query)) ||
+            (m.relation && m.relation.toLowerCase().includes(query)) ||
+            (m.aalimaHaafiz && m.aalimaHaafiz.toLowerCase().includes(query)) ||
+            (m.aadhar && m.aadhar.includes(query))
+        ))
     ).sort((a, b) => a.headName.localeCompare(b.headName));
 
     if (filtered.length === 0) {
@@ -384,6 +453,7 @@ function appendFamilyCard(f, familiesDiv, showStreet = false) {
     let badgesHtml = "";
     if (f.zakatGive === "Yes") badgesHtml += `<span class="badge give">Gives Zakaat</span>`;
     if (f.zakatReceive === "Yes") badgesHtml += `<span class="badge receive">Receives Zakaat</span>`;
+    if (f.aalimaHaafiz && f.aalimaHaafiz !== "None") badgesHtml += `<span class="badge qualification">${escapeHtml(f.aalimaHaafiz)}</span>`;
     if (f.abroad === "Yes") badgesHtml += `<span class="badge abroad">NRI (${escapeHtml(f.country)})</span>`;
 
     const streetHtml = showStreet ? `<p style="font-size: 0.75rem; color: var(--primary); margin-top: 0.2rem; font-weight: 500;">Street: ${escapeHtml(f.street)}</p>` : "";
@@ -407,6 +477,8 @@ function showDetails(id) {
     const family = families.find((f) => f.id === id);
     if (!family) return;
 
+    const members = Array.isArray(family.members) ? family.members : [];
+
     let html = `
         <div class="details-header">
             <h3>${escapeHtml(family.headName)}</h3>
@@ -414,6 +486,22 @@ function showDetails(id) {
         </div>
 
         <div class="details-grid">
+            <div class="detail-item">
+                <span class="detail-label">Father Name</span>
+                <span class="detail-value">${escapeHtml(family.fatherName) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Mother Name</span>
+                <span class="detail-value">${escapeHtml(family.motherName) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Date of Birth</span>
+                <span class="detail-value">${escapeHtml(family.dob) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Age</span>
+                <span class="detail-value">${family.age || "-"}</span>
+            </div>
             <div class="detail-item">
                 <span class="detail-label">Phone</span>
                 <span class="detail-value">${escapeHtml(family.phone) || "-"}</span>
@@ -431,6 +519,10 @@ function showDetails(id) {
                 <span class="detail-value">${escapeHtml(family.education) || "-"}</span>
             </div>
             <div class="detail-item">
+                <span class="detail-label">Aalima / Haafiz</span>
+                <span class="detail-value">${escapeHtml(family.aalimaHaafiz || "None")}</span>
+            </div>
+            <div class="detail-item">
                 <span class="detail-label">Working Abroad</span>
                 <span class="detail-value">${escapeHtml(family.abroad)} ${family.abroad === "Yes" ? `(${escapeHtml(family.country)})` : ""}</span>
             </div>
@@ -445,10 +537,10 @@ function showDetails(id) {
         </div>
 
         <div class="members-list">
-            <h4>Family Members (${family.members.length})</h4>
+            <h4>Family Members (${members.length})</h4>
     `;
 
-    if (family.members.length === 0) {
+    if (members.length === 0) {
         html += `<p style="color: var(--text-muted); font-size: 0.875rem; font-style: italic;">No additional members recorded.</p>`;
     } else {
         html += `
@@ -458,18 +550,22 @@ function showDetails(id) {
                         <tr>
                             <th>Name</th>
                             <th>Relation</th>
+                            <th>DOB</th>
                             <th>Age</th>
+                            <th>Aalima / Haafiz</th>
                             <th>Aadhar</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
-        family.members.forEach((m) => {
+        members.forEach((m) => {
             html += `
                 <tr>
                     <td><strong>${escapeHtml(m.name)}</strong></td>
                     <td>${escapeHtml(m.relation)}</td>
+                    <td>${escapeHtml(m.dob) || "-"}</td>
                     <td>${m.age || "-"}</td>
+                    <td>${escapeHtml(m.aalimaHaafiz || "None")}</td>
                     <td>${escapeHtml(m.aadhar) || "-"}</td>
                 </tr>
             `;
@@ -503,12 +599,17 @@ function editFamily(id) {
     editFamilyId = id;
 
     document.getElementById("headName").value = family.headName || "";
+    document.getElementById("fatherName").value = family.fatherName || "";
+    document.getElementById("motherName").value = family.motherName || "";
+    document.getElementById("dob").value = family.dob || "";
+    document.getElementById("age").value = family.age || calculateAgeFromDob(family.dob || "") || "";
     document.getElementById("phone").value = family.phone || "";
     document.getElementById("street").value = family.street || "";
     document.getElementById("address").value = family.address || "";
     document.getElementById("aadhar").value = family.aadhar || "";
     document.getElementById("ration").value = family.ration || "";
     document.getElementById("education").value = family.education || "";
+    document.getElementById("aalimaHaafiz").value = family.aalimaHaafiz || "None";
     document.getElementById("abroad").value = family.abroad || "No";
     toggleCountry();
     if (family.abroad === "Yes") {
@@ -520,13 +621,16 @@ function editFamily(id) {
 
     const membersDiv = document.getElementById("members");
     membersDiv.innerHTML = "";
-    if (family.members && family.members.length > 0) {
-        family.members.forEach((m) => {
+    const editMembers = Array.isArray(family.members) ? family.members : [];
+    if (editMembers.length > 0) {
+        editMembers.forEach((m) => {
             addMember();
             const lastEntry = membersDiv.lastElementChild;
             lastEntry.querySelector(".m-name").value = m.name || "";
             lastEntry.querySelector(".m-relation").value = m.relation || "";
-            lastEntry.querySelector(".m-age").value = m.age || "";
+            lastEntry.querySelector(".m-dob").value = m.dob || "";
+            lastEntry.querySelector(".m-age").value = m.age || calculateAgeFromDob(m.dob || "") || "";
+            lastEntry.querySelector(".m-aalima-haafiz").value = m.aalimaHaafiz || "None";
             lastEntry.querySelector(".m-aadhar").value = m.aadhar || "";
         });
     }
@@ -563,7 +667,26 @@ async function deleteFamily(id) {
 function generateCSVString() {
     if (families.length === 0) return "";
 
-    const headers = ["ID", "Head Name", "Phone", "Street", "Address", "Aadhar", "Ration", "Education", "Abroad", "Country", "Zakaat Give", "Zakaat Receive", "Members JSON"];
+    const headers = [
+        "ID",
+        "Head Name",
+        "Father Name",
+        "Mother Name",
+        "Phone",
+        "Street",
+        "Address",
+        "Aadhar",
+        "Ration",
+        "Education",
+        "DOB",
+        "Age",
+        "Aalima/Haafiz",
+        "Abroad",
+        "Country",
+        "Zakaat Give",
+        "Zakaat Receive",
+        "Members JSON"
+    ];
 
     const rows = families.map((f) => {
         let membersData = "";
@@ -574,12 +697,17 @@ function generateCSVString() {
         return [
             `"${f.id}"`,
             `"${escapeCSV(f.headName)}"`,
+            `"${escapeCSV(f.fatherName)}"`,
+            `"${escapeCSV(f.motherName)}"`,
             `"${escapeCSV(f.phone)}"`,
             `"${escapeCSV(f.street)}"`,
             `"${escapeCSV(f.address)}"`,
             `"${escapeCSV(f.aadhar)}"`,
             `"${escapeCSV(f.ration)}"`,
             `"${escapeCSV(f.education)}"`,
+            `"${escapeCSV(f.dob)}"`,
+            `"${escapeCSV(f.age)}"`,
+            `"${escapeCSV(f.aalimaHaafiz || "None")}"`,
             `"${escapeCSV(f.abroad)}"`,
             `"${escapeCSV(f.country)}"`,
             `"${escapeCSV(f.zakatGive)}"`,
@@ -630,63 +758,116 @@ function loadCSV(event) {
             let imported = 0;
             let updated = 0;
             const headerLine = lines[0];
-            const hasEducation = headerLine.includes("Education");
+            const headers = parseCSVLine(headerLine).map((h) => h.trim().toLowerCase());
+            const headerIndex = (name) => headers.indexOf(name.toLowerCase());
+            const hasNewFields = headerIndex("Father Name") >= 0 || headerIndex("Aalima/Haafiz") >= 0 || headerIndex("DOB") >= 0;
+            const hasEducation = headerIndex("Education") >= 0;
+
+            const readCol = (cols, name, fallbackIndex = -1) => {
+                const idx = headerIndex(name);
+                if (idx >= 0) return cols[idx] || "";
+                if (fallbackIndex >= 0) return cols[fallbackIndex] || "";
+                return "";
+            };
 
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
-                if (cols.length >= 11) {
-                    const id = cols[0] || `${Date.now()}${i}`;
-                    let members = [];
-                    let familyData = {};
+                if (cols.length < 11) continue;
 
-                    if (hasEducation && cols.length >= 12) {
-                        if (cols[12]) {
-                            try { members = JSON.parse(decodeURIComponent(atob(cols[12]))); } catch (err) {}
-                        }
-                        familyData = {
-                            id,
-                            headName: cols[1],
-                            phone: cols[2],
-                            street: cols[3],
-                            address: cols[4],
-                            aadhar: cols[5],
-                            ration: cols[6],
-                            education: cols[7],
-                            abroad: cols[8],
-                            country: cols[9],
-                            zakatGive: cols[10],
-                            zakatReceive: cols[11],
-                            members
-                        };
-                    } else {
-                        if (cols[11]) {
-                            try { members = JSON.parse(decodeURIComponent(atob(cols[11]))); } catch (err) {}
-                        }
-                        familyData = {
-                            id,
-                            headName: cols[1],
-                            phone: cols[2],
-                            street: cols[3],
-                            address: cols[4],
-                            aadhar: cols[5],
-                            ration: cols[6],
-                            education: "",
-                            abroad: cols[7],
-                            country: cols[8],
-                            zakatGive: cols[9],
-                            zakatReceive: cols[10],
-                            members
-                        };
-                    }
+                const id = readCol(cols, "ID", 0) || `${Date.now()}${i}`;
+                let members = [];
 
-                    const existingIdx = families.findIndex((f) => f.id === id);
-                    if (existingIdx >= 0) {
-                        families[existingIdx] = familyData;
-                        updated++;
-                    } else {
-                        families.push(familyData);
-                        imported++;
+                let familyData = {};
+                if (hasNewFields) {
+                    if (readCol(cols, "Members JSON")) {
+                        try { members = JSON.parse(decodeURIComponent(atob(readCol(cols, "Members JSON")))); } catch (err) {}
                     }
+                    familyData = {
+                        id,
+                        headName: readCol(cols, "Head Name", 1),
+                        fatherName: readCol(cols, "Father Name"),
+                        motherName: readCol(cols, "Mother Name"),
+                        phone: readCol(cols, "Phone", 4),
+                        street: readCol(cols, "Street", 5),
+                        address: readCol(cols, "Address", 6),
+                        aadhar: readCol(cols, "Aadhar", 7),
+                        ration: readCol(cols, "Ration", 8),
+                        education: readCol(cols, "Education", 9),
+                        dob: readCol(cols, "DOB"),
+                        age: parseInt(readCol(cols, "Age"), 10) || calculateAgeFromDob(readCol(cols, "DOB")) || 0,
+                        aalimaHaafiz: readCol(cols, "Aalima/Haafiz") || "None",
+                        abroad: readCol(cols, "Abroad", 13),
+                        country: readCol(cols, "Country", 14),
+                        zakatGive: readCol(cols, "Zakaat Give", 15),
+                        zakatReceive: readCol(cols, "Zakaat Receive", 16),
+                        members
+                    };
+                } else if (hasEducation) {
+                    if (cols[12]) {
+                        try { members = JSON.parse(decodeURIComponent(atob(cols[12]))); } catch (err) {}
+                    }
+                    familyData = {
+                        id,
+                        headName: cols[1],
+                        fatherName: "",
+                        motherName: "",
+                        phone: cols[2],
+                        street: cols[3],
+                        address: cols[4],
+                        aadhar: cols[5],
+                        ration: cols[6],
+                        education: cols[7],
+                        dob: "",
+                        age: 0,
+                        aalimaHaafiz: "None",
+                        abroad: cols[8],
+                        country: cols[9],
+                        zakatGive: cols[10],
+                        zakatReceive: cols[11],
+                        members
+                    };
+                } else {
+                    if (cols[11]) {
+                        try { members = JSON.parse(decodeURIComponent(atob(cols[11]))); } catch (err) {}
+                    }
+                    familyData = {
+                        id,
+                        headName: cols[1],
+                        fatherName: "",
+                        motherName: "",
+                        phone: cols[2],
+                        street: cols[3],
+                        address: cols[4],
+                        aadhar: cols[5],
+                        ration: cols[6],
+                        education: "",
+                        dob: "",
+                        age: 0,
+                        aalimaHaafiz: "None",
+                        abroad: cols[7],
+                        country: cols[8],
+                        zakatGive: cols[9],
+                        zakatReceive: cols[10],
+                        members
+                    };
+                }
+
+                familyData.members = (familyData.members || []).map((member) => ({
+                    name: member.name || "",
+                    relation: member.relation || "",
+                    dob: member.dob || "",
+                    age: parseInt(member.age, 10) || calculateAgeFromDob(member.dob || "") || 0,
+                    aalimaHaafiz: member.aalimaHaafiz || "None",
+                    aadhar: member.aadhar || ""
+                }));
+
+                const existingIdx = families.findIndex((f) => f.id === id);
+                if (existingIdx >= 0) {
+                    families[existingIdx] = familyData;
+                    updated++;
+                } else {
+                    families.push(familyData);
+                    imported++;
                 }
             }
 

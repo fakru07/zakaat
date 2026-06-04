@@ -77,6 +77,22 @@
                         <input id="headName" placeholder="Enter full name">
                     </div>
                     <div class="input-group">
+                        <label>Father Name</label>
+                        <input id="fatherName" placeholder="Enter father name">
+                    </div>
+                    <div class="input-group">
+                        <label>Mother Name</label>
+                        <input id="motherName" placeholder="Enter mother name">
+                    </div>
+                    <div class="input-group">
+                        <label>Date of Birth</label>
+                        <input id="dob" type="date" onchange="updateHeadAge()" oninput="updateHeadAge()">
+                    </div>
+                    <div class="input-group">
+                        <label>Age</label>
+                        <input id="age" type="number" placeholder="Auto-calculated from DOB" readonly>
+                    </div>
+                    <div class="input-group">
                         <label>Phone Number</label>
                         <input id="phone" type="tel" placeholder="10-digit number">
                     </div>
@@ -99,6 +115,15 @@
                     <div class="input-group">
                         <label>Education</label>
                         <input id="education" placeholder="E.g., B.Tech, 10th Pass, None">
+                    </div>
+                    <div class="input-group">
+                        <label>Aalima / Haafiz</label>
+                        <select id="aalimaHaafiz">
+                            <option>None</option>
+                            <option>Aalima</option>
+                            <option>Haafiz</option>
+                            <option>Aalima &amp; Haafiz</option>
+                        </select>
                     </div>
                 </div>
 

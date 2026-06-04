@@ -314,6 +314,7 @@ button {
 .badge.give { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 .badge.receive { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 .badge.abroad { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.badge.qualification { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 
 .details-panel {
     background: var(--input-bg);
@@ -480,6 +481,12 @@ select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
     background: white;
+}
+
+input[readonly] {
+    cursor: not-allowed;
+    background: #eef2f7;
+    color: var(--text-muted);
 }
 
 .members-section {

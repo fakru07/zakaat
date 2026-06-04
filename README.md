@@ -29,17 +29,22 @@ This project is a static Firestore-powered survey app that can be hosted from Gi
 Each document in `families` contains:
 
 - `headName`
+- `fatherName`
+- `motherName`
+- `dob`
+- `age`
 - `phone`
 - `street`
 - `address`
 - `aadhar`
 - `ration`
 - `education`
+- `aalimaHaafiz`
 - `abroad`
 - `country`
 - `zakatGive`
 - `zakatReceive`
-- `members`
+- `members` - each member can include `name`, `relation`, `dob`, auto-calculated `age`, `aalimaHaafiz`, and `aadhar`
 - `createdAt`
 - `updatedAt`
 
