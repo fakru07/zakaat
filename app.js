@@ -28,6 +28,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    const dobInput = document.getElementById("dob");
+    if (dobInput) {
+        dobInput.addEventListener("input", updateHeadAge);
+        dobInput.addEventListener("change", updateHeadAge);
+    }
+
     try {
         const userDoc = await db.collection("users").doc("admin").get();
         if (!userDoc.exists) {
