@@ -24,9 +24,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         allCountries.forEach((country) => {
             const option = document.createElement("option");
             option.value = country;
-            countryList.appendChild(option);
+countryList.appendChild(option);
         });
     }
+
+    ensureMarkedSurveyFields();
 
     const dobInput = document.getElementById("dob");
     if (dobInput) {
@@ -119,11 +121,240 @@ function toggleCountry() {
     } else {
         countryGroup.style.display = "none";
         country.value = "";
+   }
+}
+
+function getFieldValue(id, defaultValue = "") {
+    const el = document.getElementById(id);
+    if (!el) return defaultValue;
+    return (el.value || "").trim();
+}
+
+function setFieldValue(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = value || "";
+}
+
+function addOptions(selectElement, options) {
+    options.forEach((item) => {
+        const option = document.createElement("option");
+        if (typeof item === "string") {
+            option.value = item;
+            option.textContent = item;
+        } else {
+            option.value = item.value;
+            option.textContent = item.label;
+        }
+        selectElement.appendChild(option);
+    });
+}
+
+function createInputGroup(labelText, control) {
+    const group = document.createElement("div");
+    group.className = "input-group marked-survey-field";
+
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    if (control.id) {
+        label.setAttribute("for", control.id);
     }
+
+    group.appendChild(label);
+    group.appendChild(control);
+    return group;
+}
+
+function createSelect(id, options, onChangeHandler) {
+    const select = document.createElement("select");
+    select.id = id;
+    if (onChangeHandler) {
+        select.addEventListener("change", onChangeHandler);
+    }
+    addOptions(select, options);
+    return select;
+}
+
+function createTextInput(id, placeholder, type = "text") {
+    const input = document.createElement("input");
+    input.id = id;
+    input.type = type;
+    input.placeholder = placeholder;
+    return input;
+}
+
+function createTextArea(id, placeholder) {
+    const textarea = document.createElement("textarea");
+    textarea.id = id;
+    textarea.placeholder = placeholder;
+    textarea.rows = 3;
+    textarea.style.resize = "vertical";
+    textarea.style.width = "100%";
+    return textarea;
+}
+
+function insertGroupsAfter(referenceInputId, groups) {
+    const referenceInput = document.getElementById(referenceInputId);
+    if (!referenceInput || !referenceInput.parentElement) return;
+
+    let anchor = referenceInput.closest(".input-group") || referenceInput.parentElement;
+
+    groups.forEach((group) => {
+        anchor.insertAdjacentElement("afterend", group);
+        anchor = group;
+    });
+}
+
+function ensureMarkedSurveyFields() {
+    if (document.getElementById("familyIncome")) return;
+
+    const familyIncomeOtherGroup = createInputGroup(
+        "Other Family Income",
+        createTextInput("familyIncomeOther", "Enter monthly income amount", "number")
+    );
+    familyIncomeOtherGroup.id = "familyIncomeOtherGroup";
+    familyIncomeOtherGroup.style.display = "none";
+
+    const houseTypeOtherGroup = createInputGroup(
+        "Other House Type",
+        createTextInput("houseTypeOther", "Enter house type")
+    );
+    houseTypeOtherGroup.id = "houseTypeOtherGroup";
+    houseTypeOtherGroup.style.display = "none";
+
+    const markedGroups = [
+        createInputGroup("Banking Details", createTextArea("bankDetails", "Enter bank name / account details / IFSC if available")),
+        createInputGroup("Family Income (Monthly)", createSelect("familyIncome", [
+            { value: "", label: "Select monthly income" },
+            { value: "5000", label: "5000" },
+            { value: "10000", label: "10000" },
+            { value: "15000", label: "15000" },
+            { value: "20000", label: "20000" },
+            { value: "Others", label: "Others" }
+        ], toggleFamilyIncomeOther)),
+        familyIncomeOtherGroup,
+        createInputGroup("Residential Type", createSelect("residentialType", [
+            { value: "", label: "Select residential type" },
+            "Own House",
+            "Rented",
+            "Lease"
+        ])),
+        createInputGroup("House Type", createSelect("houseType", [
+            { value: "", label: "Select house type" },
+            "Hut",
+            "Tiled House",
+            "Sheet House",
+            "Concrete House",
+            "Apartment",
+            "Other"
+        ], toggleHouseTypeOther)),
+        houseTypeOtherGroup,
+        createInputGroup("Life Style", createSelect("lifeStyle", [
+            { value: "", label: "Select life style" },
+            "Poor",
+            "Middle",
+            "Upper"
+        ])),
+        createInputGroup("Need Home?", createSelect("needHome", ["No", "Yes"])),
+        createInputGroup("Need Toilet?", createSelect("needToilet", ["No", "Yes"])),
+        createInputGroup("Need Medical Insurance Card?", createSelect("needMedicalInsurance", ["No", "Yes"])),
+        createInputGroup("Need Food?", createSelect("needFood", ["No", "Yes"])),
+        createInputGroup("Family Without Male Support?", createSelect("noMaleSupport", ["No", "Yes"])),
+        createInputGroup("Smart Card / Ration Card Requirement", createSelect("smartCardNeed", [
+            "No",
+            "New Card",
+            "Alteration"
+        ])),
+        createInputGroup("Need Govt Docs Correction?", createSelect("govtDocsCorrection", [
+            "No",
+            "Aadhar",
+            "Voter ID",
+            "Pension",
+            "Others"
+        ])),
+        createInputGroup("General Remarks", createTextArea("generalRemarks", "Enter remarks / special needs / other details"))
+    ];
+
+    insertGroupsAfter("education", markedGroups);
+}
+
+function toggleFamilyIncomeOther() {
+    const income = document.getElementById("familyIncome");
+    const otherGroup = document.getElementById("familyIncomeOtherGroup");
+    const otherInput = document.getElementById("familyIncomeOther");
+    if (!income || !otherGroup || !otherInput) return;
+
+    if (income.value === "Others") {
+        otherGroup.style.display = "flex";
+    } else {
+        otherGroup.style.display = "none";
+        otherInput.value = "";
+    }
+}
+
+function toggleHouseTypeOther() {
+    const houseType = document.getElementById("houseType");
+    const otherGroup = document.getElementById("houseTypeOtherGroup");
+    const otherInput = document.getElementById("houseTypeOther");
+    if (!houseType || !otherGroup || !otherInput) return;
+
+    if (houseType.value === "Other") {
+        otherGroup.style.display = "flex";
+    } else {
+        otherGroup.style.display = "none";
+        otherInput.value = "";
+    }
+}
+
+function getFamilyIncomeValue() {
+    const income = getFieldValue("familyIncome");
+    if (income === "Others") {
+        return getFieldValue("familyIncomeOther");
+    }
+    return income;
+}
+
+function getHouseTypeValue() {
+    const houseType = getFieldValue("houseType");
+    if (houseType === "Other") {
+        return getFieldValue("houseTypeOther");
+    }
+    return houseType;
+}
+
+function setFamilyIncomeValue(value) {
+    const standardValues = ["", "5000", "10000", "15000", "20000"];
+    if (standardValues.includes(value || "")) {
+        setFieldValue("familyIncome", value || "");
+        setFieldValue("familyIncomeOther", "");
+    } else if (value) {
+        setFieldValue("familyIncome", "Others");
+        setFieldValue("familyIncomeOther", value);
+    } else {
+        setFieldValue("familyIncome", "");
+        setFieldValue("familyIncomeOther", "");
+    }
+    toggleFamilyIncomeOther();
+}
+
+function setHouseTypeValue(value) {
+    const standardValues = ["", "Hut", "Tiled House", "Sheet House", "Concrete House", "Apartment"];
+    if (standardValues.includes(value || "")) {
+        setFieldValue("houseType", value || "");
+        setFieldValue("houseTypeOther", "");
+    } else if (value) {
+        setFieldValue("houseType", "Other");
+        setFieldValue("houseTypeOther", value);
+    } else {
+        setFieldValue("houseType", "");
+        setFieldValue("houseTypeOther", "");
+    }
+    toggleHouseTypeOther();
 }
 
 function calculateAgeFromDob(dobValue) {
     if (!dobValue) return "";
+
 
     const birthDate = new Date(`${dobValue}T00:00:00`);
     if (Number.isNaN(birthDate.getTime())) return "";
@@ -164,27 +395,100 @@ function addMember() {
 
     memberDiv.innerHTML = `
         <div class="input-group">
-            <input type="text" placeholder="Member Name" class="m-name">
+            <input type="text" placeholder="Name *" class="m-name">
         </div>
         <div class="input-group">
-            <input type="text" placeholder="Relation (e.g., Wife, Son)" class="m-relation">
-        </div>
-        <div class="input-group">
-            <input type="date" placeholder="Date of Birth" class="m-dob" onchange="updateMemberAge(this)" oninput="updateMemberAge(this)">
-        </div>
-        <div class="input-group">
-            <input type="number" placeholder="Age" class="m-age" min="0" max="150" readonly>
-        </div>
-        <div class="input-group">
-            <select class="m-aalima-haafiz">
-                <option>None</option>
-                <option>Aalima</option>
-                <option>Haafiz</option>
-                <option>Aalima &amp; Haafiz</option>
+            <select class="m-gender">
+                <option value="">Select Gender *</option>
+                <option>Male</option>
+                <option>Female</option>
             </select>
         </div>
         <div class="input-group">
-            <input type="text" placeholder="Aadhar No" class="m-aadhar">
+            <select class="m-family-head">
+                <option value="">Family Head?</option>
+                <option>No</option>
+                <option>Yes</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-marital-status">
+                <option value="">Select Marital Status *</option>
+                <option>Single</option>
+                <option>Married</option>
+                <option>Widow</option>
+                <option>Divorced</option>
+                <option>Separated</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-blood-group">
+                <option value="">Select Blood Group</option>
+                <option>A+</option>
+                <option>A-</option>
+                <option>B+</option>
+                <option>B-</option>
+                <option>AB+</option>
+                <option>AB-</option>
+                <option>O+</option>
+                <option>O-</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-blood-donor">
+                <option value="">Blood Donor?</option>
+                <option>No</option>
+                <option>Yes</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <input type="date" placeholder="Date of Birth *" class="m-dob" onchange="updateMemberAge(this)" oninput="updateMemberAge(this)">
+        </div>
+        <div class="input-group">
+            <input type="number" placeholder="Age *" class="m-age" min="0" max="150" readonly>
+        </div>
+        <div class="input-group">
+            <input type="text" placeholder="Aadhar Number" class="m-aadhar">
+        </div>
+        <div class="input-group">
+            <input type="text" placeholder="Qualification *" class="m-qualification">
+        </div>
+        <div class="input-group">
+            <input type="text" placeholder="Occupation *" class="m-occupation">
+        </div>
+        <div class="input-group">
+            <input type="tel" placeholder="Mobile Number *" class="m-mobile" maxlength="10">
+        </div>
+        <div class="input-group">
+            <input type="email" placeholder="Email" class="m-email">
+        </div>
+        <div class="input-group">
+            <select class="m-status">
+                <option value="">Select Status</option>
+                <option>Alive</option>
+                <option>Deceased</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-orphan">
+                <option value="">Orphan? *</option>
+                <option>No</option>
+                <option>Yes</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-mentally-challenged">
+                <option value="">Mentally Challenged? *</option>
+                <option>No</option>
+                <option>Yes</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-physically-challenged">
+                <option value="">Physically Challenged? *</option>
+                <option>No</option>
+                <option>Yes</option>
+            </select>
         </div>
         <button type="button" class="btn-danger btn-small" onclick="this.parentElement.remove()" style="align-self: center;">&times; Remove</button>
     `;
@@ -203,6 +507,19 @@ async function saveFamily() {
     const aadhar = document.getElementById("aadhar").value.trim();
     const ration = document.getElementById("ration").value.trim();
     const education = document.getElementById("education").value.trim();
+    const bankDetails = getFieldValue("bankDetails");
+    const familyIncome = getFamilyIncomeValue();
+    const residentialType = getFieldValue("residentialType");
+    const houseType = getHouseTypeValue();
+    const lifeStyle = getFieldValue("lifeStyle");
+    const needHome = getFieldValue("needHome", "No") || "No";
+    const needToilet = getFieldValue("needToilet", "No") || "No";
+    const needMedicalInsurance = getFieldValue("needMedicalInsurance", "No") || "No";
+    const needFood = getFieldValue("needFood", "No") || "No";
+    const noMaleSupport = getFieldValue("noMaleSupport", "No") || "No";
+    const smartCardNeed = getFieldValue("smartCardNeed", "No") || "No";
+    const govtDocsCorrection = getFieldValue("govtDocsCorrection", "No") || "No";
+    const generalRemarks = getFieldValue("generalRemarks");
     const aalimaHaafiz = document.getElementById("aalimaHaafiz").value;
     const abroad = document.getElementById("abroad").value;
     const country = document.getElementById("country").value.trim();
@@ -231,29 +548,101 @@ async function saveFamily() {
 
     const memberElements = document.querySelectorAll(".member-entry");
     const members = [];
-    let hasMemberAadharError = false;
+    let hasMemberValidationError = false;
 
-    memberElements.forEach((el) => {
-        const name = el.querySelector(".m-name").value.trim();
-        if (name) {
-            const mAadhar = el.querySelector(".m-aadhar").value.trim();
-            if (mAadhar && !/^\d{12}$/.test(mAadhar)) {
-                alert(`Aadhar number for member "${name}" must be exactly 12 digits.`);
-                hasMemberAadharError = true;
-            }
-            const memberDob = el.querySelector(".m-dob").value;
-            members.push({
-                name,
-                relation: el.querySelector(".m-relation").value.trim(),
-                dob: memberDob,
-                age: parseInt(el.querySelector(".m-age").value.trim(), 10) || calculateAgeFromDob(memberDob) || 0,
-                aalimaHaafiz: el.querySelector(".m-aalima-haafiz").value,
-                aadhar: mAadhar
-            });
+    memberElements.forEach((el, index) => {
+        const readMemberInput = (selector) => {
+            const input = el.querySelector(selector);
+            return input ? (input.value || "").trim() : "";
+        };
+
+        const name = readMemberInput(".m-name");
+        const gender = readMemberInput(".m-gender");
+        const familyHead = readMemberInput(".m-family-head");
+        const maritalStatus = readMemberInput(".m-marital-status");
+        const bloodGroup = readMemberInput(".m-blood-group");
+        const bloodDonor = readMemberInput(".m-blood-donor");
+        const memberDob = readMemberInput(".m-dob");
+        const memberAge = parseInt(readMemberInput(".m-age"), 10) || calculateAgeFromDob(memberDob) || 0;
+        const mAadhar = readMemberInput(".m-aadhar");
+        const qualification = readMemberInput(".m-qualification") || readMemberInput(".m-education");
+        const occupation = readMemberInput(".m-occupation");
+        const mobile = readMemberInput(".m-mobile");
+        const email = readMemberInput(".m-email");
+        const status = readMemberInput(".m-status");
+        const orphan = readMemberInput(".m-orphan");
+        const mentallyChallenged = readMemberInput(".m-mentally-challenged");
+        const physicallyChallenged = readMemberInput(".m-physically-challenged");
+
+        const hasAnyMemberData = [
+            name, gender, familyHead, maritalStatus, bloodGroup, bloodDonor, memberDob,
+            mAadhar, qualification, occupation, mobile, email, status, orphan,
+            mentallyChallenged, physicallyChallenged
+        ].some((value) => value !== "");
+
+        if (!hasAnyMemberData) {
+            return;
         }
+
+        const missingFields = [];
+        if (!name) missingFields.push("Name");
+        if (!gender) missingFields.push("Gender");
+        if (!maritalStatus) missingFields.push("Marital Status");
+        if (!memberDob) missingFields.push("Date of Birth");
+        if (!qualification) missingFields.push("Qualification");
+        if (!occupation) missingFields.push("Occupation");
+        if (!mobile) missingFields.push("Mobile Number");
+        if (!orphan) missingFields.push("Orphan");
+        if (!mentallyChallenged) missingFields.push("Mentally Challenged");
+        if (!physicallyChallenged) missingFields.push("Physically Challenged");
+
+        if (missingFields.length > 0) {
+            alert(`Please fill mandatory fields for family member ${index + 1}:\n${missingFields.join(", ")}`);
+            hasMemberValidationError = true;
+            return;
+        }
+
+        if (!/^\d{10}$/.test(mobile)) {
+            alert(`Mobile number for member "${name}" must be exactly 10 digits.`);
+            hasMemberValidationError = true;
+            return;
+        }
+
+        if (mAadhar && !/^\d{12}$/.test(mAadhar)) {
+            alert(`Aadhar number for member "${name}" must be exactly 12 digits.`);
+            hasMemberValidationError = true;
+            return;
+        }
+
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            alert(`Please enter a valid email address for member "${name}".`);
+            hasMemberValidationError = true;
+            return;
+        }
+
+        members.push({
+            name,
+            gender,
+            familyHead,
+            maritalStatus,
+            bloodGroup,
+            bloodDonor,
+            dob: memberDob,
+            age: memberAge,
+            aadhar: mAadhar,
+            qualification,
+            education: qualification,
+            occupation,
+            mobile,
+            email,
+            status,
+            orphan,
+            mentallyChallenged,
+            physicallyChallenged
+        });
     });
 
-    if (hasMemberAadharError) {
+    if (hasMemberValidationError) {
         return;
     }
 
@@ -270,6 +659,19 @@ async function saveFamily() {
         aadhar,
         ration,
         education,
+        bankDetails,
+        familyIncome,
+        residentialType,
+        houseType,
+        lifeStyle,
+        needHome,
+        needToilet,
+        needMedicalInsurance,
+        needFood,
+        noMaleSupport,
+        smartCardNeed,
+        govtDocsCorrection,
+        generalRemarks,
         aalimaHaafiz,
         abroad,
         country,
@@ -317,19 +719,39 @@ function clearForm() {
     editFamilyId = null;
     const headerTitle = document.querySelector(".form-header h2");
     if (headerTitle) {
-        headerTitle.textContent = "Add New Family";
+headerTitle.textContent = "Add New Family";
     }
 
-    const fields = ["headName", "fatherName", "motherName", "dob", "age", "phone", "street", "address", "aadhar", "ration", "education", "country"];
+    const fields = [
+        "headName", "fatherName", "motherName", "dob", "age", "phone", "street", "address",
+        "aadhar", "ration", "education", "country", "bankDetails", "familyIncomeOther",
+        "houseTypeOther", "generalRemarks"
+    ];
     fields.forEach((id) => {
-        document.getElementById(id).value = "";
+        const field = document.getElementById(id);
+        if (field) field.value = "";
     });
 
     document.getElementById("abroad").value = "No";
     document.getElementById("countryGroup").style.display = "none";
-    document.getElementById("aalimaHaafiz").value = "None";
+ document.getElementById("aalimaHaafiz").value = "None";
     document.getElementById("zakatGive").value = "No";
     document.getElementById("zakatReceive").value = "No";
+
+    setFieldValue("familyIncome", "");
+    setFieldValue("residentialType", "");
+    setFieldValue("houseType", "");
+    setFieldValue("lifeStyle", "");
+    setFieldValue("needHome", "No");
+    setFieldValue("needToilet", "No");
+    setFieldValue("needMedicalInsurance", "No");
+    setFieldValue("needFood", "No");
+    setFieldValue("noMaleSupport", "No");
+    setFieldValue("smartCardNeed", "No");
+    setFieldValue("govtDocsCorrection", "No");
+    toggleFamilyIncomeOther();
+    toggleHouseTypeOther();
+
     document.getElementById("members").innerHTML = "";
 }
 
@@ -436,9 +858,32 @@ function searchFamilies() {
         (f.phone && f.phone.includes(query)) ||
         (f.aadhar && f.aadhar.includes(query)) ||
         (f.ration && f.ration.toLowerCase().includes(query)) ||
+        (f.bankDetails && f.bankDetails.toLowerCase().includes(query)) ||
+        (f.familyIncome && f.familyIncome.toString().toLowerCase().includes(query)) ||
+        (f.residentialType && f.residentialType.toLowerCase().includes(query)) ||
+        (f.houseType && f.houseType.toLowerCase().includes(query)) ||
+        (f.lifeStyle && f.lifeStyle.toLowerCase().includes(query)) ||
+        (f.generalRemarks && f.generalRemarks.toLowerCase().includes(query)) ||
         (Array.isArray(f.members) && f.members.some((m) =>
             (m.name && m.name.toLowerCase().includes(query)) ||
+            (m.gender && m.gender.toLowerCase().includes(query)) ||
+            (m.familyHead && m.familyHead.toLowerCase().includes(query)) ||
+            (m.maritalStatus && m.maritalStatus.toLowerCase().includes(query)) ||
+            (m.bloodGroup && m.bloodGroup.toLowerCase().includes(query)) ||
+            (m.bloodDonor && m.bloodDonor.toLowerCase().includes(query)) ||
             (m.relation && m.relation.toLowerCase().includes(query)) ||
+            (m.fatherName && m.fatherName.toLowerCase().includes(query)) ||
+            (m.motherName && m.motherName.toLowerCase().includes(query)) ||
+            (m.qualification && m.qualification.toLowerCase().includes(query)) ||
+            (m.education && m.education.toLowerCase().includes(query)) ||
+            (m.occupation && m.occupation.toLowerCase().includes(query)) ||
+            (m.mobile && m.mobile.includes(query)) ||
+            (m.email && m.email.toLowerCase().includes(query)) ||
+            (m.status && m.status.toLowerCase().includes(query)) ||
+            (m.orphan && m.orphan.toLowerCase().includes(query)) ||
+            (m.mentallyChallenged && m.mentallyChallenged.toLowerCase().includes(query)) ||
+            (m.physicallyChallenged && m.physicallyChallenged.toLowerCase().includes(query)) ||
+            (m.income && m.income.toString().toLowerCase().includes(query)) ||
             (m.aalimaHaafiz && m.aalimaHaafiz.toLowerCase().includes(query)) ||
             (m.aadhar && m.aadhar.includes(query))
         ))
@@ -451,6 +896,7 @@ function searchFamilies() {
 
     filtered.forEach((f) => appendFamilyCard(f, familiesDiv, true));
 }
+
 
 function appendFamilyCard(f, familiesDiv, showStreet = false) {
     const card = document.createElement("div");
@@ -525,6 +971,58 @@ function showDetails(id) {
                 <span class="detail-value">${escapeHtml(family.education) || "-"}</span>
             </div>
             <div class="detail-item">
+                <span class="detail-label">Banking Details</span>
+                <span class="detail-value">${escapeHtml(family.bankDetails) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Family Income (Monthly)</span>
+                <span class="detail-value">${escapeHtml(family.familyIncome) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Residential Type</span>
+                <span class="detail-value">${escapeHtml(family.residentialType) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">House Type</span>
+                <span class="detail-value">${escapeHtml(family.houseType) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Life Style</span>
+                <span class="detail-value">${escapeHtml(family.lifeStyle) || "-"}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Need Home?</span>
+                <span class="detail-value">${escapeHtml(family.needHome || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Need Toilet?</span>
+                <span class="detail-value">${escapeHtml(family.needToilet || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Need Medical Insurance Card?</span>
+                <span class="detail-value">${escapeHtml(family.needMedicalInsurance || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Need Food?</span>
+                <span class="detail-value">${escapeHtml(family.needFood || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Family Without Male Support?</span>
+                <span class="detail-value">${escapeHtml(family.noMaleSupport || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Smart Card / Ration Card Requirement</span>
+                <span class="detail-value">${escapeHtml(family.smartCardNeed || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Need Govt Docs Correction?</span>
+                <span class="detail-value">${escapeHtml(family.govtDocsCorrection || "No")}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">General Remarks</span>
+                <span class="detail-value">${escapeHtml(family.generalRemarks) || "-"}</span>
+            </div>
+            <div class="detail-item">
                 <span class="detail-label">Aalima / Haafiz</span>
                 <span class="detail-value">${escapeHtml(family.aalimaHaafiz || "None")}</span>
             </div>
@@ -555,24 +1053,47 @@ function showDetails(id) {
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Relation</th>
+                            <th>Gender</th>
+                            <th>Family Head</th>
+                            <th>Marital Status</th>
+                            <th>Blood Group</th>
+                            <th>Blood Donor</th>
                             <th>DOB</th>
                             <th>Age</th>
-                            <th>Aalima / Haafiz</th>
                             <th>Aadhar</th>
+                            <th>Qualification</th>
+                            <th>Occupation</th>
+                            <th>Mobile</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Orphan</th>
+                            <th>Mentally Challenged</th>
+                            <th>Physically Challenged</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         members.forEach((m) => {
+            const qualification = m.qualification || m.education || "";
             html += `
                 <tr>
                     <td><strong>${escapeHtml(m.name)}</strong></td>
-                    <td>${escapeHtml(m.relation)}</td>
+                    <td>${escapeHtml(m.gender) || "-"}</td>
+                    <td>${escapeHtml(m.familyHead) || "-"}</td>
+                    <td>${escapeHtml(m.maritalStatus) || "-"}</td>
+                    <td>${escapeHtml(m.bloodGroup) || "-"}</td>
+                    <td>${escapeHtml(m.bloodDonor) || "-"}</td>
                     <td>${escapeHtml(m.dob) || "-"}</td>
                     <td>${m.age || "-"}</td>
-                    <td>${escapeHtml(m.aalimaHaafiz || "None")}</td>
                     <td>${escapeHtml(m.aadhar) || "-"}</td>
+                    <td>${escapeHtml(qualification) || "-"}</td>
+                    <td>${escapeHtml(m.occupation) || "-"}</td>
+                    <td>${escapeHtml(m.mobile) || "-"}</td>
+                    <td>${escapeHtml(m.email) || "-"}</td>
+                    <td>${escapeHtml(m.status) || "-"}</td>
+                    <td>${escapeHtml(m.orphan) || "-"}</td>
+                    <td>${escapeHtml(m.mentallyChallenged) || "-"}</td>
+                    <td>${escapeHtml(m.physicallyChallenged) || "-"}</td>
                 </tr>
             `;
         });
@@ -615,6 +1136,19 @@ function editFamily(id) {
     document.getElementById("aadhar").value = family.aadhar || "";
     document.getElementById("ration").value = family.ration || "";
     document.getElementById("education").value = family.education || "";
+    setFieldValue("bankDetails", family.bankDetails || "");
+    setFamilyIncomeValue(family.familyIncome || "");
+    setFieldValue("residentialType", family.residentialType || "");
+    setHouseTypeValue(family.houseType || "");
+    setFieldValue("lifeStyle", family.lifeStyle || "");
+    setFieldValue("needHome", family.needHome || "No");
+    setFieldValue("needToilet", family.needToilet || "No");
+    setFieldValue("needMedicalInsurance", family.needMedicalInsurance || "No");
+    setFieldValue("needFood", family.needFood || "No");
+    setFieldValue("noMaleSupport", family.noMaleSupport || "No");
+    setFieldValue("smartCardNeed", family.smartCardNeed || "No");
+    setFieldValue("govtDocsCorrection", family.govtDocsCorrection || "No");
+    setFieldValue("generalRemarks", family.generalRemarks || "");
     document.getElementById("aalimaHaafiz").value = family.aalimaHaafiz || "None";
     document.getElementById("abroad").value = family.abroad || "No";
     toggleCountry();
@@ -633,11 +1167,22 @@ function editFamily(id) {
             addMember();
             const lastEntry = membersDiv.lastElementChild;
             lastEntry.querySelector(".m-name").value = m.name || "";
-            lastEntry.querySelector(".m-relation").value = m.relation || "";
+            lastEntry.querySelector(".m-gender").value = m.gender || "";
+            lastEntry.querySelector(".m-family-head").value = m.familyHead || "";
+            lastEntry.querySelector(".m-marital-status").value = m.maritalStatus || "";
+            lastEntry.querySelector(".m-blood-group").value = m.bloodGroup || "";
+            lastEntry.querySelector(".m-blood-donor").value = m.bloodDonor || "";
             lastEntry.querySelector(".m-dob").value = m.dob || "";
             lastEntry.querySelector(".m-age").value = m.age || calculateAgeFromDob(m.dob || "") || "";
-            lastEntry.querySelector(".m-aalima-haafiz").value = m.aalimaHaafiz || "None";
             lastEntry.querySelector(".m-aadhar").value = m.aadhar || "";
+            lastEntry.querySelector(".m-qualification").value = m.qualification || m.education || "";
+            lastEntry.querySelector(".m-occupation").value = m.occupation || "";
+            lastEntry.querySelector(".m-mobile").value = m.mobile || "";
+            lastEntry.querySelector(".m-email").value = m.email || "";
+            lastEntry.querySelector(".m-status").value = m.status || "";
+            lastEntry.querySelector(".m-orphan").value = m.orphan || "";
+            lastEntry.querySelector(".m-mentally-challenged").value = m.mentallyChallenged || "";
+            lastEntry.querySelector(".m-physically-challenged").value = m.physicallyChallenged || "";
         });
     }
 
@@ -681,9 +1226,22 @@ function generateCSVString() {
         "Phone",
         "Street",
         "Address",
-        "Aadhar",
+"Aadhar",
         "Ration",
         "Education",
+        "Banking Details",
+        "Family Income",
+        "Residential Type",
+        "House Type",
+        "Life Style",
+        "Need Home",
+        "Need Toilet",
+        "Need Medical Insurance",
+        "Need Food",
+        "Family Without Male Support",
+        "Smart Card Need",
+        "Govt Docs Correction",
+        "General Remarks",
         "DOB",
         "Age",
         "Aalima/Haafiz",
@@ -708,9 +1266,22 @@ function generateCSVString() {
             `"${escapeCSV(f.phone)}"`,
             `"${escapeCSV(f.street)}"`,
             `"${escapeCSV(f.address)}"`,
-            `"${escapeCSV(f.aadhar)}"`,
+`"${escapeCSV(f.aadhar)}"`,
             `"${escapeCSV(f.ration)}"`,
             `"${escapeCSV(f.education)}"`,
+            `"${escapeCSV(f.bankDetails)}"`,
+            `"${escapeCSV(f.familyIncome)}"`,
+            `"${escapeCSV(f.residentialType)}"`,
+            `"${escapeCSV(f.houseType)}"`,
+            `"${escapeCSV(f.lifeStyle)}"`,
+            `"${escapeCSV(f.needHome || "No")}"`,
+            `"${escapeCSV(f.needToilet || "No")}"`,
+            `"${escapeCSV(f.needMedicalInsurance || "No")}"`,
+            `"${escapeCSV(f.needFood || "No")}"`,
+            `"${escapeCSV(f.noMaleSupport || "No")}"`,
+            `"${escapeCSV(f.smartCardNeed || "No")}"`,
+            `"${escapeCSV(f.govtDocsCorrection || "No")}"`,
+            `"${escapeCSV(f.generalRemarks)}"`,
             `"${escapeCSV(f.dob)}"`,
             `"${escapeCSV(f.age)}"`,
             `"${escapeCSV(f.aalimaHaafiz || "None")}"`,
@@ -796,9 +1367,22 @@ function loadCSV(event) {
                         phone: readCol(cols, "Phone", 4),
                         street: readCol(cols, "Street", 5),
                         address: readCol(cols, "Address", 6),
-                        aadhar: readCol(cols, "Aadhar", 7),
+aadhar: readCol(cols, "Aadhar", 7),
                         ration: readCol(cols, "Ration", 8),
                         education: readCol(cols, "Education", 9),
+                        bankDetails: readCol(cols, "Banking Details"),
+                        familyIncome: readCol(cols, "Family Income"),
+                        residentialType: readCol(cols, "Residential Type"),
+                        houseType: readCol(cols, "House Type"),
+                        lifeStyle: readCol(cols, "Life Style"),
+                        needHome: readCol(cols, "Need Home") || "No",
+                        needToilet: readCol(cols, "Need Toilet") || "No",
+                        needMedicalInsurance: readCol(cols, "Need Medical Insurance") || "No",
+                        needFood: readCol(cols, "Need Food") || "No",
+                        noMaleSupport: readCol(cols, "Family Without Male Support") || "No",
+                        smartCardNeed: readCol(cols, "Smart Card Need") || "No",
+                        govtDocsCorrection: readCol(cols, "Govt Docs Correction") || "No",
+                        generalRemarks: readCol(cols, "General Remarks"),
                         dob: readCol(cols, "DOB"),
                         age: parseInt(readCol(cols, "Age"), 10) || calculateAgeFromDob(readCol(cols, "DOB")) || 0,
                         aalimaHaafiz: readCol(cols, "Aalima/Haafiz") || "None",
@@ -820,9 +1404,22 @@ function loadCSV(event) {
                         phone: cols[2],
                         street: cols[3],
                         address: cols[4],
-                        aadhar: cols[5],
+aadhar: cols[5],
                         ration: cols[6],
                         education: cols[7],
+                        bankDetails: "",
+                        familyIncome: "",
+                        residentialType: "",
+                        houseType: "",
+                        lifeStyle: "",
+                        needHome: "No",
+                        needToilet: "No",
+                        needMedicalInsurance: "No",
+                        needFood: "No",
+                        noMaleSupport: "No",
+                        smartCardNeed: "No",
+                        govtDocsCorrection: "No",
+                        generalRemarks: "",
                         dob: "",
                         age: 0,
                         aalimaHaafiz: "None",
@@ -844,9 +1441,22 @@ function loadCSV(event) {
                         phone: cols[2],
                         street: cols[3],
                         address: cols[4],
-                        aadhar: cols[5],
+aadhar: cols[5],
                         ration: cols[6],
                         education: "",
+                        bankDetails: "",
+                        familyIncome: "",
+                        residentialType: "",
+                        houseType: "",
+                        lifeStyle: "",
+                        needHome: "No",
+                        needToilet: "No",
+                        needMedicalInsurance: "No",
+                        needFood: "No",
+                        noMaleSupport: "No",
+                        smartCardNeed: "No",
+                        govtDocsCorrection: "No",
+                        generalRemarks: "",
                         dob: "",
                         age: 0,
                         aalimaHaafiz: "None",
@@ -858,14 +1468,29 @@ function loadCSV(event) {
                     };
                 }
 
-                familyData.members = (familyData.members || []).map((member) => ({
-                    name: member.name || "",
-                    relation: member.relation || "",
-                    dob: member.dob || "",
-                    age: parseInt(member.age, 10) || calculateAgeFromDob(member.dob || "") || 0,
-                    aalimaHaafiz: member.aalimaHaafiz || "None",
-                    aadhar: member.aadhar || ""
-                }));
+familyData.members = (familyData.members || []).map((member) => {
+                    const qualification = member.qualification || member.education || "";
+                    return {
+                        name: member.name || "",
+                        gender: member.gender || "",
+                        familyHead: member.familyHead || "",
+                        maritalStatus: member.maritalStatus || "",
+                        bloodGroup: member.bloodGroup || "",
+                        bloodDonor: member.bloodDonor || "",
+                        dob: member.dob || "",
+                        age: parseInt(member.age, 10) || calculateAgeFromDob(member.dob || "") || 0,
+                        aadhar: member.aadhar || "",
+                        qualification,
+                        education: qualification,
+                        occupation: member.occupation || "",
+                        mobile: member.mobile || "",
+                        email: member.email || "",
+                        status: member.status || "",
+                        orphan: member.orphan || "",
+                        mentallyChallenged: member.mentallyChallenged || "",
+                        physicallyChallenged: member.physicallyChallenged || ""
+                    };
+                });
 
                 const existingIdx = families.findIndex((f) => f.id === id);
                 if (existingIdx >= 0) {
