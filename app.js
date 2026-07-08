@@ -388,6 +388,74 @@ function updateMemberAge(dobInput) {
     }
 }
 
+function toggleMemberOccupationOther(selectElement) {
+    const memberEntry = selectElement.closest(".member-entry");
+    if (!memberEntry) return;
+
+    const otherGroup = memberEntry.querySelector(".m-occupation-other-group");
+    const otherInput = memberEntry.querySelector(".m-occupation-other");
+    if (!otherGroup || !otherInput) return;
+
+    if (selectElement.value === "Others") {
+        otherGroup.style.display = "flex";
+    } else {
+        otherGroup.style.display = "none";
+        otherInput.value = "";
+    }
+}
+
+function setMemberOccupationValue(memberEntry, value) {
+    const occupationSelect = memberEntry.querySelector(".m-occupation");
+    const occupationOther = memberEntry.querySelector(".m-occupation-other");
+    if (!occupationSelect || !occupationOther) return;
+
+    const standardValues = ["", "Student", "Housewife"];
+    if (standardValues.includes(value || "")) {
+        occupationSelect.value = value || "";
+        occupationOther.value = "";
+    } else if (value) {
+        occupationSelect.value = "Others";
+        occupationOther.value = value;
+    } else {
+        occupationSelect.value = "";
+        occupationOther.value = "";
+    }
+    toggleMemberOccupationOther(occupationSelect);
+}
+
+function toggleMemberChallengeDescription(selectElement, descriptionGroupSelector, descriptionInputSelector) {
+    const memberEntry = selectElement.closest(".member-entry");
+    if (!memberEntry) return;
+
+    const descriptionGroup = memberEntry.querySelector(descriptionGroupSelector);
+    const descriptionInput = memberEntry.querySelector(descriptionInputSelector);
+    if (!descriptionGroup || !descriptionInput) return;
+
+    if (selectElement.value === "Yes") {
+        descriptionGroup.style.display = "flex";
+    } else {
+        descriptionGroup.style.display = "none";
+        descriptionInput.value = "";
+    }
+}
+
+function toggleMemberAbroadCountry(selectElement) {
+    const memberEntry = selectElement.closest(".member-entry");
+    if (!memberEntry) return;
+
+    const countryGroup = memberEntry.querySelector(".m-country-group");
+    const countryInput = memberEntry.querySelector(".m-country");
+    if (!countryGroup || !countryInput) return;
+
+    if (selectElement.value === "Yes") {
+        countryGroup.style.display = "flex";
+    } else {
+        countryGroup.style.display = "none";
+        countryInput.value = "";
+    }
+}
+
+
 function addMember() {
     const membersDiv = document.getElementById("members");
     const memberDiv = document.createElement("div");
@@ -402,13 +470,6 @@ function addMember() {
                 <option value="">Select Gender *</option>
                 <option>Male</option>
                 <option>Female</option>
-            </select>
-        </div>
-        <div class="input-group">
-            <select class="m-family-head">
-                <option value="">Family Head?</option>
-                <option>No</option>
-                <option>Yes</option>
             </select>
         </div>
         <div class="input-group">
@@ -454,20 +515,36 @@ function addMember() {
             <input type="text" placeholder="Qualification *" class="m-qualification">
         </div>
         <div class="input-group">
-            <input type="text" placeholder="Occupation *" class="m-occupation">
-        </div>
-        <div class="input-group">
-            <input type="tel" placeholder="Mobile Number *" class="m-mobile" maxlength="10">
-        </div>
-        <div class="input-group">
-            <input type="email" placeholder="Email" class="m-email">
-        </div>
-        <div class="input-group">
-            <select class="m-status">
-                <option value="">Select Status</option>
-                <option>Alive</option>
-                <option>Deceased</option>
+            <select class="m-occupation" onchange="toggleMemberOccupationOther(this)">
+                <option value="">Select Occupation *</option>
+                <option>Student</option>
+                <option>Housewife</option>
+                <option>Others</option>
             </select>
+        </div>
+        <div class="input-group m-occupation-other-group" style="display: none;">
+            <input type="text" placeholder="Enter Occupation *" class="m-occupation-other">
+        </div>
+        <div class="input-group">
+            <input type="tel" placeholder="Mobile Number" class="m-mobile" maxlength="10">
+        </div>
+        <div class="input-group">
+            <select class="m-aalima-haafiz">
+                <option value="">Aalima / Haafiz?</option>
+                <option>None</option>
+                <option>Aalima</option>
+                <option>Haafiz</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <select class="m-abroad" onchange="toggleMemberAbroadCountry(this)">
+                <option value="">Working Abroad?</option>
+                <option>No</option>
+                <option>Yes</option>
+            </select>
+        </div>
+        <div class="input-group m-country-group" style="display: none;">
+            <input type="text" placeholder="Select Country *" class="m-country" list="countryList">
         </div>
         <div class="input-group">
             <select class="m-orphan">
@@ -477,23 +554,30 @@ function addMember() {
             </select>
         </div>
         <div class="input-group">
-            <select class="m-mentally-challenged">
+            <select class="m-mentally-challenged" onchange="toggleMemberChallengeDescription(this, '.m-mentally-challenged-description-group', '.m-mentally-challenged-description')">
                 <option value="">Mentally Challenged? *</option>
                 <option>No</option>
                 <option>Yes</option>
             </select>
         </div>
+        <div class="input-group m-mentally-challenged-description-group" style="display: none;">
+            <textarea placeholder="Describe mentally challenged details *" class="m-mentally-challenged-description" rows="3" style="resize: vertical; width: 100%;"></textarea>
+        </div>
         <div class="input-group">
-            <select class="m-physically-challenged">
+            <select class="m-physically-challenged" onchange="toggleMemberChallengeDescription(this, '.m-physically-challenged-description-group', '.m-physically-challenged-description')">
                 <option value="">Physically Challenged? *</option>
                 <option>No</option>
                 <option>Yes</option>
             </select>
         </div>
+        <div class="input-group m-physically-challenged-description-group" style="display: none;">
+            <textarea placeholder="Describe physically challenged details *" class="m-physically-challenged-description" rows="3" style="resize: vertical; width: 100%;"></textarea>
+        </div>
         <button type="button" class="btn-danger btn-small" onclick="this.parentElement.remove()" style="align-self: center;">&times; Remove</button>
     `;
     membersDiv.appendChild(memberDiv);
 }
+
 
 async function saveFamily() {
     const headName = document.getElementById("headName").value.trim();
@@ -556,9 +640,8 @@ async function saveFamily() {
             return input ? (input.value || "").trim() : "";
         };
 
-        const name = readMemberInput(".m-name");
+const name = readMemberInput(".m-name");
         const gender = readMemberInput(".m-gender");
-        const familyHead = readMemberInput(".m-family-head");
         const maritalStatus = readMemberInput(".m-marital-status");
         const bloodGroup = readMemberInput(".m-blood-group");
         const bloodDonor = readMemberInput(".m-blood-donor");
@@ -566,18 +649,26 @@ async function saveFamily() {
         const memberAge = parseInt(readMemberInput(".m-age"), 10) || calculateAgeFromDob(memberDob) || 0;
         const mAadhar = readMemberInput(".m-aadhar");
         const qualification = readMemberInput(".m-qualification") || readMemberInput(".m-education");
-        const occupation = readMemberInput(".m-occupation");
+        const occupationSelect = readMemberInput(".m-occupation");
+        const occupationOther = readMemberInput(".m-occupation-other");
+        const occupation = occupationSelect === "Others" ? occupationOther : occupationSelect;
         const mobile = readMemberInput(".m-mobile");
-        const email = readMemberInput(".m-email");
-        const status = readMemberInput(".m-status");
+        const memberAalimaHaafiz = readMemberInput(".m-aalima-haafiz") || "None";
+        const memberAbroad = readMemberInput(".m-abroad") || "No";
+        const memberCountry = readMemberInput(".m-country");
         const orphan = readMemberInput(".m-orphan");
         const mentallyChallenged = readMemberInput(".m-mentally-challenged");
+        const mentallyChallengedDescription = readMemberInput(".m-mentally-challenged-description");
         const physicallyChallenged = readMemberInput(".m-physically-challenged");
+        const physicallyChallengedDescription = readMemberInput(".m-physically-challenged-description");
 
         const hasAnyMemberData = [
-            name, gender, familyHead, maritalStatus, bloodGroup, bloodDonor, memberDob,
-            mAadhar, qualification, occupation, mobile, email, status, orphan,
-            mentallyChallenged, physicallyChallenged
+            name, gender, maritalStatus, bloodGroup, bloodDonor, memberDob,
+            mAadhar, qualification, occupationSelect, occupationOther, mobile,
+            memberAalimaHaafiz === "None" ? "" : memberAalimaHaafiz,
+            memberAbroad === "No" ? "" : memberAbroad,
+            memberCountry, orphan, mentallyChallenged, mentallyChallengedDescription,
+            physicallyChallenged, physicallyChallengedDescription
         ].some((value) => value !== "");
 
         if (!hasAnyMemberData) {
@@ -591,10 +682,11 @@ async function saveFamily() {
         if (!memberDob) missingFields.push("Date of Birth");
         if (!qualification) missingFields.push("Qualification");
         if (!occupation) missingFields.push("Occupation");
-        if (!mobile) missingFields.push("Mobile Number");
         if (!orphan) missingFields.push("Orphan");
         if (!mentallyChallenged) missingFields.push("Mentally Challenged");
+        if (mentallyChallenged === "Yes" && !mentallyChallengedDescription) missingFields.push("Mentally Challenged Description");
         if (!physicallyChallenged) missingFields.push("Physically Challenged");
+        if (physicallyChallenged === "Yes" && !physicallyChallengedDescription) missingFields.push("Physically Challenged Description");
 
         if (missingFields.length > 0) {
             alert(`Please fill mandatory fields for family member ${index + 1}:\n${missingFields.join(", ")}`);
@@ -602,7 +694,7 @@ async function saveFamily() {
             return;
         }
 
-        if (!/^\d{10}$/.test(mobile)) {
+        if (mobile && !/^\d{10}$/.test(mobile)) {
             alert(`Mobile number for member "${name}" must be exactly 10 digits.`);
             hasMemberValidationError = true;
             return;
@@ -614,8 +706,8 @@ async function saveFamily() {
             return;
         }
 
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            alert(`Please enter a valid email address for member "${name}".`);
+        if (memberAbroad === "Yes" && !allCountries.includes(memberCountry)) {
+            alert(`Please select a valid country for member "${name}" since Working Abroad is Yes.`);
             hasMemberValidationError = true;
             return;
         }
@@ -623,7 +715,6 @@ async function saveFamily() {
         members.push({
             name,
             gender,
-            familyHead,
             maritalStatus,
             bloodGroup,
             bloodDonor,
@@ -634,12 +725,16 @@ async function saveFamily() {
             education: qualification,
             occupation,
             mobile,
-            email,
-            status,
+            aalimaHaafiz: memberAalimaHaafiz,
+            abroad: memberAbroad,
+            country: memberAbroad === "Yes" ? memberCountry : "",
             orphan,
             mentallyChallenged,
-            physicallyChallenged
+            mentallyChallengedDescription: mentallyChallenged === "Yes" ? mentallyChallengedDescription : "",
+            physicallyChallenged,
+            physicallyChallengedDescription: physicallyChallenged === "Yes" ? physicallyChallengedDescription : ""
         });
+
     });
 
     if (hasMemberValidationError) {
@@ -864,10 +959,9 @@ function searchFamilies() {
         (f.houseType && f.houseType.toLowerCase().includes(query)) ||
         (f.lifeStyle && f.lifeStyle.toLowerCase().includes(query)) ||
         (f.generalRemarks && f.generalRemarks.toLowerCase().includes(query)) ||
-        (Array.isArray(f.members) && f.members.some((m) =>
+       (Array.isArray(f.members) && f.members.some((m) =>
             (m.name && m.name.toLowerCase().includes(query)) ||
             (m.gender && m.gender.toLowerCase().includes(query)) ||
-            (m.familyHead && m.familyHead.toLowerCase().includes(query)) ||
             (m.maritalStatus && m.maritalStatus.toLowerCase().includes(query)) ||
             (m.bloodGroup && m.bloodGroup.toLowerCase().includes(query)) ||
             (m.bloodDonor && m.bloodDonor.toLowerCase().includes(query)) ||
@@ -878,15 +972,18 @@ function searchFamilies() {
             (m.education && m.education.toLowerCase().includes(query)) ||
             (m.occupation && m.occupation.toLowerCase().includes(query)) ||
             (m.mobile && m.mobile.includes(query)) ||
-            (m.email && m.email.toLowerCase().includes(query)) ||
-            (m.status && m.status.toLowerCase().includes(query)) ||
             (m.orphan && m.orphan.toLowerCase().includes(query)) ||
             (m.mentallyChallenged && m.mentallyChallenged.toLowerCase().includes(query)) ||
+            (m.mentallyChallengedDescription && m.mentallyChallengedDescription.toLowerCase().includes(query)) ||
             (m.physicallyChallenged && m.physicallyChallenged.toLowerCase().includes(query)) ||
+            (m.physicallyChallengedDescription && m.physicallyChallengedDescription.toLowerCase().includes(query)) ||
             (m.income && m.income.toString().toLowerCase().includes(query)) ||
             (m.aalimaHaafiz && m.aalimaHaafiz.toLowerCase().includes(query)) ||
+            (m.abroad && m.abroad.toLowerCase().includes(query)) ||
+            (m.country && m.country.toLowerCase().includes(query)) ||
             (m.aadhar && m.aadhar.includes(query))
         ))
+
     ).sort((a, b) => a.headName.localeCompare(b.headName));
 
     if (filtered.length === 0) {
@@ -1052,9 +1149,8 @@ function showDetails(id) {
                 <table class="member-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
+<th>Name</th>
                             <th>Gender</th>
-                            <th>Family Head</th>
                             <th>Marital Status</th>
                             <th>Blood Group</th>
                             <th>Blood Donor</th>
@@ -1064,11 +1160,14 @@ function showDetails(id) {
                             <th>Qualification</th>
                             <th>Occupation</th>
                             <th>Mobile</th>
-                            <th>Email</th>
-                            <th>Status</th>
+                            <th>Aalima / Haafiz</th>
+                            <th>Working Abroad</th>
                             <th>Orphan</th>
                             <th>Mentally Challenged</th>
+                            <th>Mental Description</th>
                             <th>Physically Challenged</th>
+                            <th>Physical Description</th>
+
                         </tr>
                     </thead>
                     <tbody>
@@ -1077,9 +1176,8 @@ function showDetails(id) {
             const qualification = m.qualification || m.education || "";
             html += `
                 <tr>
-                    <td><strong>${escapeHtml(m.name)}</strong></td>
+<td><strong>${escapeHtml(m.name)}</strong></td>
                     <td>${escapeHtml(m.gender) || "-"}</td>
-                    <td>${escapeHtml(m.familyHead) || "-"}</td>
                     <td>${escapeHtml(m.maritalStatus) || "-"}</td>
                     <td>${escapeHtml(m.bloodGroup) || "-"}</td>
                     <td>${escapeHtml(m.bloodDonor) || "-"}</td>
@@ -1089,11 +1187,14 @@ function showDetails(id) {
                     <td>${escapeHtml(qualification) || "-"}</td>
                     <td>${escapeHtml(m.occupation) || "-"}</td>
                     <td>${escapeHtml(m.mobile) || "-"}</td>
-                    <td>${escapeHtml(m.email) || "-"}</td>
-                    <td>${escapeHtml(m.status) || "-"}</td>
+                    <td>${escapeHtml(m.aalimaHaafiz || "None")}</td>
+                    <td>${escapeHtml(m.abroad || "No")} ${(m.abroad || "No") === "Yes" ? `(${escapeHtml(m.country)})` : ""}</td>
                     <td>${escapeHtml(m.orphan) || "-"}</td>
                     <td>${escapeHtml(m.mentallyChallenged) || "-"}</td>
+                    <td>${escapeHtml(m.mentallyChallengedDescription) || "-"}</td>
                     <td>${escapeHtml(m.physicallyChallenged) || "-"}</td>
+                    <td>${escapeHtml(m.physicallyChallengedDescription) || "-"}</td>
+
                 </tr>
             `;
         });
@@ -1166,9 +1267,8 @@ function editFamily(id) {
         editMembers.forEach((m) => {
             addMember();
             const lastEntry = membersDiv.lastElementChild;
-            lastEntry.querySelector(".m-name").value = m.name || "";
+lastEntry.querySelector(".m-name").value = m.name || "";
             lastEntry.querySelector(".m-gender").value = m.gender || "";
-            lastEntry.querySelector(".m-family-head").value = m.familyHead || "";
             lastEntry.querySelector(".m-marital-status").value = m.maritalStatus || "";
             lastEntry.querySelector(".m-blood-group").value = m.bloodGroup || "";
             lastEntry.querySelector(".m-blood-donor").value = m.bloodDonor || "";
@@ -1176,13 +1276,22 @@ function editFamily(id) {
             lastEntry.querySelector(".m-age").value = m.age || calculateAgeFromDob(m.dob || "") || "";
             lastEntry.querySelector(".m-aadhar").value = m.aadhar || "";
             lastEntry.querySelector(".m-qualification").value = m.qualification || m.education || "";
-            lastEntry.querySelector(".m-occupation").value = m.occupation || "";
+            setMemberOccupationValue(lastEntry, m.occupation || "");
             lastEntry.querySelector(".m-mobile").value = m.mobile || "";
-            lastEntry.querySelector(".m-email").value = m.email || "";
-            lastEntry.querySelector(".m-status").value = m.status || "";
+            lastEntry.querySelector(".m-aalima-haafiz").value = m.aalimaHaafiz || "None";
+            lastEntry.querySelector(".m-abroad").value = m.abroad || "No";
+            toggleMemberAbroadCountry(lastEntry.querySelector(".m-abroad"));
+            if ((m.abroad || "No") === "Yes") {
+                lastEntry.querySelector(".m-country").value = m.country || "";
+            }
             lastEntry.querySelector(".m-orphan").value = m.orphan || "";
             lastEntry.querySelector(".m-mentally-challenged").value = m.mentallyChallenged || "";
+            lastEntry.querySelector(".m-mentally-challenged-description").value = m.mentallyChallengedDescription || "";
+            toggleMemberChallengeDescription(lastEntry.querySelector(".m-mentally-challenged"), ".m-mentally-challenged-description-group", ".m-mentally-challenged-description");
             lastEntry.querySelector(".m-physically-challenged").value = m.physicallyChallenged || "";
+            lastEntry.querySelector(".m-physically-challenged-description").value = m.physicallyChallengedDescription || "";
+            toggleMemberChallengeDescription(lastEntry.querySelector(".m-physically-challenged"), ".m-physically-challenged-description-group", ".m-physically-challenged-description");
+
         });
     }
 
@@ -1470,10 +1579,10 @@ aadhar: cols[5],
 
 familyData.members = (familyData.members || []).map((member) => {
                     const qualification = member.qualification || member.education || "";
+                    const memberAbroad = member.abroad || "No";
                     return {
                         name: member.name || "",
                         gender: member.gender || "",
-                        familyHead: member.familyHead || "",
                         maritalStatus: member.maritalStatus || "",
                         bloodGroup: member.bloodGroup || "",
                         bloodDonor: member.bloodDonor || "",
@@ -1484,13 +1593,17 @@ familyData.members = (familyData.members || []).map((member) => {
                         education: qualification,
                         occupation: member.occupation || "",
                         mobile: member.mobile || "",
-                        email: member.email || "",
-                        status: member.status || "",
+                        aalimaHaafiz: member.aalimaHaafiz || "None",
+                        abroad: memberAbroad,
+                        country: memberAbroad === "Yes" ? (member.country || "") : "",
                         orphan: member.orphan || "",
                         mentallyChallenged: member.mentallyChallenged || "",
-                        physicallyChallenged: member.physicallyChallenged || ""
+                        mentallyChallengedDescription: member.mentallyChallengedDescription || "",
+                        physicallyChallenged: member.physicallyChallenged || "",
+                        physicallyChallengedDescription: member.physicallyChallengedDescription || ""
                     };
                 });
+
 
                 const existingIdx = families.findIndex((f) => f.id === id);
                 if (existingIdx >= 0) {
