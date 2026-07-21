@@ -923,7 +923,92 @@ function updateMemberAge(dobInput) {
     }
 }
 
+function getMemberRelationshipDisplay(member) {
+    if (!member) return "";
+
+    const relation = (member.relation || "").trim();
+    const relationOther = (member.relationOther || "").trim();
+
+    if (relation === "Other") {
+        return relationOther || "Other";
+    }
+
+    return relation || relationOther;
+}
+
+function toggleMemberRelationshipOther(selectElement) {
+    const memberEntry = selectElement.closest(".member-entry");
+    if (!memberEntry) return;
+
+    const otherGroup = memberEntry.querySelector(".m-relation-other-group");
+    const otherInput = memberEntry.querySelector(".m-relation-other");
+    if (!otherGroup || !otherInput) return;
+
+    if (selectElement.value === "Other") {
+        otherGroup.style.display = "flex";
+    } else {
+        otherGroup.style.display = "none";
+        otherInput.value = "";
+    }
+}
+
+function setMemberRelationshipValue(memberEntry, relationValue, relationOtherValue = "") {
+    const relationSelect = memberEntry.querySelector(".m-relation");
+    const relationOther = memberEntry.querySelector(".m-relation-other");
+    if (!relationSelect || !relationOther) return;
+
+    const standardRelationships = [
+        "",
+        "Husband",
+        "Wife",
+        "Son",
+        "Daughter",
+        "Father",
+        "Mother",
+        "Brother",
+        "Sister",
+        "Grandfather",
+        "Grandmother",
+        "Grandson",
+        "Granddaughter",
+        "Son-in-law",
+        "Daughter-in-law",
+        "Father-in-law",
+        "Mother-in-law",
+        "Brother-in-law",
+        "Sister-in-law",
+        "Uncle",
+        "Aunt",
+        "Nephew",
+        "Niece",
+        "Guardian",
+        "Other Dependent",
+        "Other"
+    ];
+
+    const relation = (relationValue || "").trim();
+    const customRelation = (relationOtherValue || "").trim();
+
+    if (!relation) {
+        relationSelect.value = "";
+        relationOther.value = "";
+    } else if (relation === "Other") {
+        relationSelect.value = "Other";
+        relationOther.value = customRelation;
+    } else if (standardRelationships.includes(relation)) {
+        relationSelect.value = relation;
+        relationOther.value = "";
+    } else {
+        // Backward compatibility for an older custom relationship stored directly in relation.
+        relationSelect.value = "Other";
+        relationOther.value = relation;
+    }
+
+    toggleMemberRelationshipOther(relationSelect);
+}
+
 function toggleMemberOccupationOther(selectElement) {
+
     const memberEntry = selectElement.closest(".member-entry");
     if (!memberEntry) return;
 
@@ -997,11 +1082,45 @@ function addMember() {
     memberDiv.className = "member-entry";
 
     memberDiv.innerHTML = `
-        <div class="input-group">
+<div class="input-group">
             <input type="text" placeholder="Name *" class="m-name">
         </div>
         <div class="input-group">
+            <select class="m-relation" onchange="toggleMemberRelationshipOther(this)">
+                <option value="">Select Relationship to Family Head *</option>
+                <option>Husband</option>
+                <option>Wife</option>
+                <option>Son</option>
+                <option>Daughter</option>
+                <option>Father</option>
+                <option>Mother</option>
+                <option>Brother</option>
+                <option>Sister</option>
+                <option>Grandfather</option>
+                <option>Grandmother</option>
+                <option>Grandson</option>
+                <option>Granddaughter</option>
+                <option>Son-in-law</option>
+                <option>Daughter-in-law</option>
+                <option>Father-in-law</option>
+                <option>Mother-in-law</option>
+                <option>Brother-in-law</option>
+                <option>Sister-in-law</option>
+                <option>Uncle</option>
+                <option>Aunt</option>
+                <option>Nephew</option>
+                <option>Niece</option>
+                <option>Guardian</option>
+                <option>Other Dependent</option>
+                <option>Other</option>
+            </select>
+        </div>
+        <div class="input-group m-relation-other-group" style="display: none;">
+            <input type="text" placeholder="Specify Relationship *" class="m-relation-other" maxlength="80">
+        </div>
+        <div class="input-group">
             <select class="m-gender">
+
                 <option value="">Select Gender *</option>
                 <option>Male</option>
                 <option>Female</option>
@@ -1176,7 +1295,10 @@ async function saveFamily() {
         };
 
 const name = readMemberInput(".m-name");
+        const relation = readMemberInput(".m-relation");
+        const relationOther = readMemberInput(".m-relation-other");
         const gender = readMemberInput(".m-gender");
+
         const maritalStatus = readMemberInput(".m-marital-status");
         const bloodGroup = readMemberInput(".m-blood-group");
         const bloodDonor = readMemberInput(".m-blood-donor");
@@ -1197,8 +1319,9 @@ const name = readMemberInput(".m-name");
         const physicallyChallenged = readMemberInput(".m-physically-challenged");
         const physicallyChallengedDescription = readMemberInput(".m-physically-challenged-description");
 
-        const hasAnyMemberData = [
-            name, gender, maritalStatus, bloodGroup, bloodDonor, memberDob,
+const hasAnyMemberData = [
+            name, relation, relationOther, gender, maritalStatus, bloodGroup, bloodDonor, memberDob,
+
             mAadhar, qualification, occupationSelect, occupationOther, mobile,
             memberAalimaHaafiz === "None" ? "" : memberAalimaHaafiz,
             memberAbroad === "No" ? "" : memberAbroad,
@@ -1210,9 +1333,12 @@ const name = readMemberInput(".m-name");
             return;
         }
 
-        const missingFields = [];
+const missingFields = [];
         if (!name) missingFields.push("Name");
+        if (!relation) missingFields.push("Relationship to Family Head");
+        if (relation === "Other" && !relationOther) missingFields.push("Specify Relationship");
         if (!gender) missingFields.push("Gender");
+
         if (!maritalStatus) missingFields.push("Marital Status");
         if (!memberDob) missingFields.push("Date of Birth");
         if (!qualification) missingFields.push("Qualification");
@@ -1247,9 +1373,12 @@ const name = readMemberInput(".m-name");
             return;
         }
 
-        members.push({
+members.push({
             name,
+            relation,
+            relationOther: relation === "Other" ? relationOther : "",
             gender,
+
             maritalStatus,
             bloodGroup,
             bloodDonor,
@@ -1511,8 +1640,10 @@ function searchFamilies() {
             (m.maritalStatus && m.maritalStatus.toLowerCase().includes(query)) ||
             (m.bloodGroup && m.bloodGroup.toLowerCase().includes(query)) ||
             (m.bloodDonor && m.bloodDonor.toLowerCase().includes(query)) ||
-            (m.relation && m.relation.toLowerCase().includes(query)) ||
+(m.relation && m.relation.toLowerCase().includes(query)) ||
+            (m.relationOther && m.relationOther.toLowerCase().includes(query)) ||
             (m.fatherName && m.fatherName.toLowerCase().includes(query)) ||
+
             (m.motherName && m.motherName.toLowerCase().includes(query)) ||
             (m.qualification && m.qualification.toLowerCase().includes(query)) ||
             (m.education && m.education.toLowerCase().includes(query)) ||
@@ -1696,7 +1827,9 @@ function showDetails(id) {
                     <thead>
                         <tr>
 <th>Name</th>
+                            <th>Relationship</th>
                             <th>Gender</th>
+
                             <th>Marital Status</th>
                             <th>Blood Group</th>
                             <th>Blood Donor</th>
@@ -1718,12 +1851,16 @@ function showDetails(id) {
                     </thead>
                     <tbody>
         `;
-        members.forEach((m) => {
+members.forEach((m) => {
             const qualification = m.qualification || m.education || "";
+            const relationship = getMemberRelationshipDisplay(m);
             html += `
+
                 <tr>
 <td><strong>${escapeHtml(m.name)}</strong></td>
+                    <td>${escapeHtml(relationship) || "Not Specified"}</td>
                     <td>${escapeHtml(m.gender) || "-"}</td>
+
                     <td>${escapeHtml(m.maritalStatus) || "-"}</td>
                     <td>${escapeHtml(m.bloodGroup) || "-"}</td>
                     <td>${escapeHtml(m.bloodDonor) || "-"}</td>
@@ -1815,7 +1952,9 @@ function editFamily(id) {
             addMember();
             const lastEntry = membersDiv.lastElementChild;
 lastEntry.querySelector(".m-name").value = m.name || "";
+            setMemberRelationshipValue(lastEntry, m.relation || "", m.relationOther || "");
             lastEntry.querySelector(".m-gender").value = m.gender || "";
+
             lastEntry.querySelector(".m-marital-status").value = m.maritalStatus || "";
             lastEntry.querySelector(".m-blood-group").value = m.bloodGroup || "";
             lastEntry.querySelector(".m-blood-donor").value = m.bloodDonor || "";
@@ -2127,9 +2266,12 @@ aadhar: cols[5],
 familyData.members = (familyData.members || []).map((member) => {
                     const qualification = member.qualification || member.education || "";
                     const memberAbroad = member.abroad || "No";
-                    return {
+                   return {
                         name: member.name || "",
+                        relation: member.relation || "",
+                        relationOther: member.relationOther || "",
                         gender: member.gender || "",
+
                         maritalStatus: member.maritalStatus || "",
                         bloodGroup: member.bloodGroup || "",
                         bloodDonor: member.bloodDonor || "",
