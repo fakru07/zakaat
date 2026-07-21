@@ -13,6 +13,10 @@ const db = firebase.firestore();
 
 let families = [];
 let editFamilyId = null;
+let streetMasters = [];
+let editStreetMasterId = null;
+let streetMasterReady = false;
+
 
 const allCountries = [
     "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cote d'Ivoire", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Holy See", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe", "Other"
@@ -24,11 +28,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         allCountries.forEach((country) => {
             const option = document.createElement("option");
             option.value = country;
-countryList.appendChild(option);
+            countryList.appendChild(option);
         });
     }
 
     ensureMarkedSurveyFields();
+    ensureStreetMasterUI();
 
     const dobInput = document.getElementById("dob");
     if (dobInput) {
@@ -54,7 +59,11 @@ countryList.appendChild(option);
         snapshot.forEach((doc) => {
             families.push({ id: doc.id, ...doc.data() });
         });
-        families.sort((a, b) => a.headName.localeCompare(b.headName));
+        families.sort((a, b) => (a.headName || "").localeCompare(b.headName || ""));
+
+        await loadStreetMasters();
+        await syncFamilyStreetsToMaster();
+        refreshStreetDropdown();
     } catch (err) {
         console.error("Failed to load data from Firestore:", err);
         alert("Could not connect to Firebase database. Check your config and rules.");
@@ -66,6 +75,7 @@ countryList.appendChild(option);
         renderDashboard();
     }
 });
+
 
 async function login() {
     const u = document.getElementById("username").value.trim();
@@ -98,11 +108,13 @@ function logout() {
     location.reload();
 }
 
+
 function toggleForm() {
     const form = document.getElementById("formSection");
     const dashboard = document.getElementById("dashboardSection");
 
     if (form.style.display === "none" || form.style.display === "") {
+        refreshStreetDropdown();
         form.style.display = "block";
         dashboard.style.display = "none";
     } else {
@@ -111,6 +123,7 @@ function toggleForm() {
         clearForm();
     }
 }
+
 
 function toggleCountry() {
     const abroad = document.getElementById("abroad").value;
@@ -135,6 +148,528 @@ function setFieldValue(id, value) {
     if (!el) return;
     el.value = value || "";
 }
+
+
+function normalizeStreetName(value) {
+    return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function streetCompareKey(value) {
+    return normalizeStreetName(value).toLocaleLowerCase("en-IN");
+}
+
+function formatStreetName(value) {
+    return normalizeStreetName(value)
+        .toLocaleLowerCase("en-IN")
+        .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function getStreetUsageCount(streetName) {
+    const key = streetCompareKey(streetName);
+    return families.filter((family) => streetCompareKey(family.street) === key).length;
+}
+
+function getCanonicalStreetName(streetName) {
+    const key = streetCompareKey(streetName);
+    const master = streetMasters.find((item) => streetCompareKey(item.name) === key);
+    return master ? master.name : normalizeStreetName(streetName);
+}
+
+function getDashboardStreetNames() {
+    const streetMap = new Map();
+
+    streetMasters.forEach((item) => {
+        const name = normalizeStreetName(item.name);
+        const key = streetCompareKey(name);
+        if (key) streetMap.set(key, name);
+    });
+
+    families.forEach((family) => {
+        const name = normalizeStreetName(family.street);
+        const key = streetCompareKey(name);
+        if (key && !streetMap.has(key)) streetMap.set(key, name);
+    });
+
+    return Array.from(streetMap.values()).sort((a, b) => a.localeCompare(b));
+}
+
+function ensureStreetMasterUI() {
+    replaceStreetTextBoxWithDropdown();
+
+    if (!document.getElementById("streetMasterStyles")) {
+        const style = document.createElement("style");
+        style.id = "streetMasterStyles";
+        style.textContent = `
+            .street-master-btn {
+                border: 1px solid #dbe2ea;
+                background: #ffffff;
+                color: #0f172a;
+                border-radius: 9px;
+                padding: 0.72rem 1rem;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .street-master-btn:hover { background: #f8fafc; }
+            .street-master-overlay {
+                position: fixed;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: rgba(15, 23, 42, 0.55);
+                padding: 1rem;
+                z-index: 10000;
+            }
+            .street-master-overlay.open { display: flex; }
+            .street-master-dialog {
+                width: min(760px, 96vw);
+                max-height: 88vh;
+                overflow: hidden;
+                background: #ffffff;
+                border-radius: 16px;
+                box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+                display: flex;
+                flex-direction: column;
+            }
+            .street-master-header,
+            .street-master-form,
+            .street-master-footer {
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .street-master-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+            }
+            .street-master-header h3 { margin: 0; }
+            .street-master-close {
+                border: 0;
+                background: transparent;
+                font-size: 1.6rem;
+                cursor: pointer;
+                color: #64748b;
+            }
+            .street-master-form {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto auto;
+                gap: 0.75rem;
+                align-items: center;
+            }
+            .street-master-form input {
+                width: 100%;
+                min-width: 0;
+                border: 1px solid #dbe2ea;
+                border-radius: 9px;
+                padding: 0.72rem 0.85rem;
+            }
+            .street-master-list {
+                overflow: auto;
+                padding: 0.25rem 1.25rem 1rem;
+            }
+            .street-master-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 100px 150px;
+                gap: 0.75rem;
+                align-items: center;
+                border-bottom: 1px solid #eef2f7;
+                padding: 0.8rem 0;
+            }
+            .street-master-row strong { overflow-wrap: anywhere; }
+            .street-master-count {
+                color: #64748b;
+                font-size: 0.85rem;
+                text-align: center;
+            }
+            .street-master-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 0.5rem;
+            }
+            .street-master-actions button {
+                border-radius: 7px;
+                padding: 0.45rem 0.7rem;
+                cursor: pointer;
+            }
+            .street-master-edit { border: 1px solid #cbd5e1; background: #ffffff; }
+            .street-master-delete { border: 1px solid #fecaca; background: #fff1f2; color: #be123c; }
+            .street-master-empty {
+                text-align: center;
+                color: #64748b;
+                padding: 2rem 0;
+            }
+            .street-master-footer {
+                border-bottom: 0;
+                border-top: 1px solid #e5e7eb;
+                color: #64748b;
+                font-size: 0.85rem;
+            }
+            @media (max-width: 640px) {
+                .street-master-form { grid-template-columns: 1fr; }
+                .street-master-row { grid-template-columns: minmax(0, 1fr); }
+                .street-master-count { text-align: left; }
+                .street-master-actions { justify-content: flex-start; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    if (!document.getElementById("streetMasterButton")) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.id = "streetMasterButton";
+        button.className = "street-master-btn";
+        button.textContent = "Street Master";
+        button.addEventListener("click", openStreetMaster);
+
+        const dashboard = document.getElementById("dashboardSection");
+        const newFamilyButton = dashboard
+            ? Array.from(dashboard.querySelectorAll("button")).find((item) =>
+                (item.getAttribute("onclick") || "").includes("toggleForm") ||
+                item.textContent.includes("New Family")
+            )
+            : null;
+
+        if (newFamilyButton && newFamilyButton.parentElement) {
+            newFamilyButton.insertAdjacentElement("beforebegin", button);
+        } else if (dashboard) {
+            dashboard.insertAdjacentElement("afterbegin", button);
+        }
+    }
+
+    if (!document.getElementById("streetMasterOverlay")) {
+        const overlay = document.createElement("div");
+        overlay.id = "streetMasterOverlay";
+        overlay.className = "street-master-overlay";
+        overlay.innerHTML = `
+            <div class="street-master-dialog" role="dialog" aria-modal="true" aria-labelledby="streetMasterTitle">
+                <div class="street-master-header">
+                    <div>
+                        <h3 id="streetMasterTitle">Street Master</h3>
+                        <div style="color:#64748b;font-size:0.85rem;margin-top:0.2rem;">Add, rename or remove street names.</div>
+                    </div>
+                    <button type="button" class="street-master-close" aria-label="Close" onclick="closeStreetMaster()">&times;</button>
+                </div>
+                <div class="street-master-form">
+                    <input id="streetMasterName" type="text" maxlength="120" placeholder="Enter street name">
+                    <button id="streetMasterSaveButton" type="button" class="btn-primary" onclick="saveStreetMaster()">Add Street</button>
+                    <button id="streetMasterCancelButton" type="button" class="street-master-btn" style="display:none;" onclick="cancelStreetMasterEdit()">Cancel</button>
+                </div>
+                <div id="streetMasterList" class="street-master-list"></div>
+                <div class="street-master-footer">A street cannot be deleted while family records are using it. Renaming a street updates all linked families.</div>
+            </div>
+        `;
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) closeStreetMaster();
+        });
+        document.body.appendChild(overlay);
+
+        const input = document.getElementById("streetMasterName");
+        if (input) {
+            input.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") saveStreetMaster();
+                if (event.key === "Escape") closeStreetMaster();
+            });
+        }
+    }
+}
+
+function replaceStreetTextBoxWithDropdown() {
+    const currentStreetControl = document.getElementById("street");
+    if (!currentStreetControl || currentStreetControl.tagName === "SELECT") return;
+
+    const streetSelect = document.createElement("select");
+    streetSelect.id = "street";
+    streetSelect.name = currentStreetControl.name || "street";
+    streetSelect.className = currentStreetControl.className || "";
+    streetSelect.required = true;
+    streetSelect.setAttribute("aria-label", "Street");
+
+    currentStreetControl.replaceWith(streetSelect);
+    refreshStreetDropdown();
+}
+
+function refreshStreetDropdown(selectedValue = null) {
+    const streetSelect = document.getElementById("street");
+    if (!streetSelect) return;
+
+    const currentValue = selectedValue !== null ? selectedValue : streetSelect.value;
+    streetSelect.innerHTML = "";
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = streetMasters.length > 0 ? "Select street *" : "Add street in Street Master first";
+    streetSelect.appendChild(placeholder);
+
+    streetMasters
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((street) => {
+            const option = document.createElement("option");
+            option.value = street.name;
+            option.textContent = street.name;
+            streetSelect.appendChild(option);
+        });
+
+    const canonicalCurrentValue = getCanonicalStreetName(currentValue);
+    const hasCurrentValue = streetMasters.some(
+        (item) => streetCompareKey(item.name) === streetCompareKey(canonicalCurrentValue)
+    );
+
+    if (canonicalCurrentValue && !hasCurrentValue) {
+        const legacyOption = document.createElement("option");
+        legacyOption.value = canonicalCurrentValue;
+        legacyOption.textContent = `${canonicalCurrentValue} (Legacy)`;
+        streetSelect.appendChild(legacyOption);
+    }
+
+    streetSelect.value = canonicalCurrentValue || "";
+}
+
+async function loadStreetMasters() {
+    const snapshot = await db.collection("streetMasters").get();
+    streetMasters = [];
+
+    snapshot.forEach((doc) => {
+        const data = doc.data() || {};
+        const name = normalizeStreetName(data.name);
+        if (name) streetMasters.push({ id: doc.id, ...data, name });
+    });
+
+    streetMasters.sort((a, b) => a.name.localeCompare(b.name));
+    streetMasterReady = true;
+    renderStreetMasterList();
+}
+
+async function writeFamilyStreetUpdates(updates) {
+    const chunkSize = 400;
+
+    for (let start = 0; start < updates.length; start += chunkSize) {
+        const batch = db.batch();
+        updates.slice(start, start + chunkSize).forEach((update) => {
+            batch.update(db.collection("families").doc(update.id), {
+                street: update.street
+            });
+        });
+        await batch.commit();
+    }
+}
+
+async function syncFamilyStreetsToMaster() {
+    const masterByKey = new Map();
+    streetMasters.forEach((street) => {
+        masterByKey.set(streetCompareKey(street.name), street);
+    });
+
+    const familiesToUpdate = [];
+
+    for (const family of families) {
+        const rawName = normalizeStreetName(family.street);
+        if (!rawName) continue;
+
+        const key = streetCompareKey(rawName);
+        let master = masterByKey.get(key);
+
+        if (!master) {
+            const canonicalName = formatStreetName(rawName);
+            const docRef = await db.collection("streetMasters").add({
+                name: canonicalName,
+                normalizedName: streetCompareKey(canonicalName),
+                active: true,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            master = { id: docRef.id, name: canonicalName, active: true };
+            streetMasters.push(master);
+            masterByKey.set(key, master);
+        }
+
+        if (family.street !== master.name) {
+            family.street = master.name;
+            familiesToUpdate.push({ id: family.id, street: master.name });
+        }
+    }
+
+    if (familiesToUpdate.length > 0) {
+        await writeFamilyStreetUpdates(familiesToUpdate);
+    }
+
+    streetMasters.sort((a, b) => a.name.localeCompare(b.name));
+    renderStreetMasterList();
+}
+
+function openStreetMaster() {
+    ensureStreetMasterUI();
+    renderStreetMasterList();
+    const overlay = document.getElementById("streetMasterOverlay");
+    if (overlay) overlay.classList.add("open");
+
+    const input = document.getElementById("streetMasterName");
+    if (input) setTimeout(() => input.focus(), 0);
+}
+
+function closeStreetMaster() {
+    cancelStreetMasterEdit();
+    const overlay = document.getElementById("streetMasterOverlay");
+    if (overlay) overlay.classList.remove("open");
+}
+
+function renderStreetMasterList() {
+    const list = document.getElementById("streetMasterList");
+    if (!list) return;
+
+    if (!streetMasterReady && streetMasters.length === 0) {
+        list.innerHTML = '<div class="street-master-empty">Loading street names...</div>';
+        return;
+    }
+
+    if (streetMasters.length === 0) {
+        list.innerHTML = '<div class="street-master-empty">No street names added yet.</div>';
+        return;
+    }
+
+    list.innerHTML = streetMasters
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((street) => {
+            const count = getStreetUsageCount(street.name);
+            return `
+                <div class="street-master-row">
+                    <strong>${escapeHtml(street.name)}</strong>
+                    <span class="street-master-count">${count} ${count === 1 ? "family" : "families"}</span>
+                    <div class="street-master-actions">
+                        <button type="button" class="street-master-edit" onclick="startStreetMasterEdit('${street.id}')">Edit</button>
+                        <button type="button" class="street-master-delete" onclick="deleteStreetMaster('${street.id}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        })
+        .join("");
+}
+
+function startStreetMasterEdit(id) {
+    const street = streetMasters.find((item) => item.id === id);
+    if (!street) return;
+
+    editStreetMasterId = id;
+    const input = document.getElementById("streetMasterName");
+    const saveButton = document.getElementById("streetMasterSaveButton");
+    const cancelButton = document.getElementById("streetMasterCancelButton");
+
+    if (input) {
+        input.value = street.name;
+        input.focus();
+        input.select();
+    }
+    if (saveButton) saveButton.textContent = "Update Street";
+    if (cancelButton) cancelButton.style.display = "inline-flex";
+}
+
+function cancelStreetMasterEdit() {
+    editStreetMasterId = null;
+    const input = document.getElementById("streetMasterName");
+    const saveButton = document.getElementById("streetMasterSaveButton");
+    const cancelButton = document.getElementById("streetMasterCancelButton");
+
+    if (input) input.value = "";
+    if (saveButton) saveButton.textContent = "Add Street";
+    if (cancelButton) cancelButton.style.display = "none";
+}
+
+async function saveStreetMaster() {
+    const input = document.getElementById("streetMasterName");
+    const enteredName = input ? normalizeStreetName(input.value) : "";
+    const name = formatStreetName(enteredName);
+
+    if (!name) {
+        alert("Please enter a street name.");
+        if (input) input.focus();
+        return;
+    }
+
+    const duplicate = streetMasters.find(
+        (item) => item.id !== editStreetMasterId && streetCompareKey(item.name) === streetCompareKey(name)
+    );
+
+    if (duplicate) {
+        alert(`Street "${duplicate.name}" already exists.`);
+        if (input) input.focus();
+        return;
+    }
+
+    try {
+        if (editStreetMasterId) {
+            const street = streetMasters.find((item) => item.id === editStreetMasterId);
+            if (!street) return;
+
+            const oldName = street.name;
+            await db.collection("streetMasters").doc(street.id).update({
+                name,
+                normalizedName: streetCompareKey(name),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const linkedFamilies = families.filter(
+                (family) => streetCompareKey(family.street) === streetCompareKey(oldName)
+            );
+            linkedFamilies.forEach((family) => {
+                family.street = name;
+            });
+            await writeFamilyStreetUpdates(linkedFamilies.map((family) => ({
+                id: family.id,
+                street: name
+            })));
+
+            street.name = name;
+        } else {
+            const docRef = await db.collection("streetMasters").add({
+                name,
+                normalizedName: streetCompareKey(name),
+                active: true,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            streetMasters.push({ id: docRef.id, name, active: true });
+        }
+
+        streetMasters.sort((a, b) => a.name.localeCompare(b.name));
+        cancelStreetMasterEdit();
+        renderStreetMasterList();
+        refreshStreetDropdown();
+        renderDashboard();
+    } catch (error) {
+        console.error("Failed to save street master:", error);
+        alert("Could not save the street name. Check Firebase permissions.");
+    }
+}
+
+async function deleteStreetMaster(id) {
+    const street = streetMasters.find((item) => item.id === id);
+    if (!street) return;
+
+    const usageCount = getStreetUsageCount(street.name);
+    if (usageCount > 0) {
+        alert(`Cannot delete "${street.name}" because ${usageCount} family record(s) use it. Edit the street name instead, or move those families to another street first.`);
+        return;
+    }
+
+    if (!confirm(`Delete street "${street.name}"?`)) return;
+
+    try {
+        await db.collection("streetMasters").doc(id).delete();
+        streetMasters = streetMasters.filter((item) => item.id !== id);
+        if (editStreetMasterId === id) cancelStreetMasterEdit();
+        renderStreetMasterList();
+        refreshStreetDropdown();
+        renderDashboard();
+    } catch (error) {
+        console.error("Failed to delete street master:", error);
+        alert("Could not delete the street name. Check Firebase permissions.");
+    }
+}
+
 
 function addOptions(selectElement, options) {
     options.forEach((item) => {
@@ -865,18 +1400,20 @@ function renderDashboard() {
     const familiesDiv = document.getElementById("families");
     const detailsDiv = document.getElementById("details");
 
+    if (!streetsDiv || !familiesDiv || !detailsDiv) return;
+
     familiesDiv.innerHTML = "";
     detailsDiv.innerHTML = "";
     detailsDiv.classList.add("empty");
 
-    const streets = [...new Set(families.map((f) => f.street).filter((s) => s))].sort();
+    const streets = getDashboardStreetNames();
 
     if (streets.length === 0) {
-        streetsDiv.innerHTML = "<p style='color: var(--text-muted); font-size: 0.875rem; text-align: center;'>No survey data yet.</p>";
+        streetsDiv.innerHTML = "<p style='color: var(--text-muted); font-size: 0.875rem; text-align: center;'>No streets added yet.</p>";
         familiesDiv.innerHTML = `
             <div style="text-align: center; padding: 3rem; background: white; border-radius: var(--radius-md); border: 1px dashed var(--border-color); grid-column: 1 / -1;">
-                <p style="color: var(--text-muted); margin-bottom: 1rem;">Start by adding your first family record.</p>
-                <button class="btn-primary" onclick="toggleForm()">+ New Family</button>
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">Add street names in Street Master before creating family records.</p>
+                <button class="street-master-btn" onclick="openStreetMaster()">Open Street Master</button>
             </div>
         `;
         return;
@@ -887,17 +1424,15 @@ function renderDashboard() {
         const btn = document.createElement("button");
         btn.textContent = street;
         btn.className = "pill-btn";
-        btn.onclick = (e) => {
-            document.querySelectorAll(".pill-btn").forEach((b) => b.classList.remove("active"));
-            e.target.classList.add("active");
+        btn.onclick = (event) => {
+            document.querySelectorAll(".pill-btn").forEach((item) => item.classList.remove("active"));
+            event.currentTarget.classList.add("active");
             showFamilies(street);
         };
         streetsDiv.appendChild(btn);
     });
 
-    if (streets.length > 0) {
-        streetsDiv.firstChild.click();
-    }
+    streetsDiv.firstChild.click();
 }
 
 function showFamilies(street) {
@@ -912,14 +1447,25 @@ function showFamilies(street) {
     detailsDiv.classList.add("empty");
     familiesDiv.innerHTML = "";
 
+    const streetKey = streetCompareKey(street);
     const filtered = families
-        .filter((f) => f.street === street)
-        .sort((a, b) => a.headName.localeCompare(b.headName));
+        .filter((family) => streetCompareKey(family.street) === streetKey)
+        .sort((a, b) => (a.headName || "").localeCompare(b.headName || ""));
 
-    filtered.forEach((f) => {
-        appendFamilyCard(f, familiesDiv, false);
+    if (filtered.length === 0) {
+        familiesDiv.innerHTML = `
+            <div style="text-align:center;padding:2rem;background:#fff;border:1px dashed #dbe2ea;border-radius:10px;grid-column:1/-1;">
+                <p style="color:var(--text-muted);margin:0;">No families are assigned to ${escapeHtml(street)}.</p>
+            </div>
+        `;
+        return;
+    }
+
+    filtered.forEach((family) => {
+        appendFamilyCard(family, familiesDiv, false);
     });
 }
+
 
 function searchFamilies() {
     const query = document.getElementById("searchInput").value.toLowerCase().trim();
@@ -1231,9 +1777,10 @@ function editFamily(id) {
     document.getElementById("motherName").value = family.motherName || "";
     document.getElementById("dob").value = family.dob || "";
     document.getElementById("age").value = family.age || calculateAgeFromDob(family.dob || "") || "";
-    document.getElementById("phone").value = family.phone || "";
-    document.getElementById("street").value = family.street || "";
+ document.getElementById("phone").value = family.phone || "";
+    refreshStreetDropdown(family.street || "");
     document.getElementById("address").value = family.address || "";
+
     document.getElementById("aadhar").value = family.aadhar || "";
     document.getElementById("ration").value = family.ration || "";
     document.getElementById("education").value = family.education || "";
@@ -1622,9 +2169,13 @@ familyData.members = (familyData.members || []).map((member) => {
             });
             await batch.commit();
 
-            families.sort((a, b) => a.headName.localeCompare(b.headName));
+families.sort((a, b) => (a.headName || "").localeCompare(b.headName || ""));
+            await loadStreetMasters();
+            await syncFamilyStreetsToMaster();
+            refreshStreetDropdown();
             alert(`CSV Processed Successfully!\nImported: ${imported}\nUpdated: ${updated}`);
             renderDashboard();
+
         } catch (err) {
             alert("Error parsing CSV file. Please ensure it was generated by this application.");
             console.error(err);
