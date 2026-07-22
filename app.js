@@ -1703,9 +1703,40 @@ function showDetails(id) {
     const family = families.find((f) => f.id === id);
     if (!family) return;
 
-    const members = Array.isArray(family.members) ? family.members : [];
+const members = Array.isArray(family.members) ? family.members : [];
+
+    // The family head is stored in the main family document, not in family.members.
+    // Create a temporary display-only row so the table contains the complete family.
+    const familyHeadRow = {
+        name: family.headName || "",
+        relation: "Family Head",
+        relationOther: "",
+        gender: family.gender || "",
+        maritalStatus: family.maritalStatus || "",
+        bloodGroup: family.bloodGroup || "",
+        bloodDonor: family.bloodDonor || "",
+        dob: family.dob || "",
+        age: family.age || calculateAgeFromDob(family.dob || "") || "",
+        aadhar: family.aadhar || "",
+        qualification: family.education || "",
+        education: family.education || "",
+        occupation: family.occupation || "",
+        mobile: family.phone || "",
+        aalimaHaafiz: family.aalimaHaafiz || "None",
+        abroad: family.abroad || "No",
+        country: family.abroad === "Yes" ? (family.country || "") : "",
+        orphan: "",
+        mentallyChallenged: "",
+        mentallyChallengedDescription: "",
+        physicallyChallenged: "",
+        physicallyChallengedDescription: "",
+        isFamilyHead: true
+    };
+
+    const allFamilyPersons = [familyHeadRow, ...members];
 
     let html = `
+
         <div class="details-header">
             <h3>${escapeHtml(family.headName)}</h3>
             <p style="color: var(--text-muted); font-size: 0.875rem;">${escapeHtml(family.address)}, ${escapeHtml(family.street)}</p>
@@ -1814,11 +1845,12 @@ function showDetails(id) {
             </div>
         </div>
 
-        <div class="members-list">
-            <h4>Family Members (${members.length})</h4>
+<div class="members-list">
+            <h4>Complete Family Details (${allFamilyPersons.length})</h4>
     `;
 
-    if (members.length === 0) {
+    if (allFamilyPersons.length === 0) {
+
         html += `<p style="color: var(--text-muted); font-size: 0.875rem; font-style: italic;">No additional members recorded.</p>`;
     } else {
         html += `
@@ -1851,14 +1883,19 @@ function showDetails(id) {
                     </thead>
                     <tbody>
         `;
-members.forEach((m) => {
+allFamilyPersons.forEach((m) => {
             const qualification = m.qualification || m.education || "";
             const relationship = getMemberRelationshipDisplay(m);
             html += `
 
-                <tr>
+                <tr style="${m.isFamilyHead ? "background:#ecfdf5;" : ""}">
 <td><strong>${escapeHtml(m.name)}</strong></td>
-                    <td>${escapeHtml(relationship) || "Not Specified"}</td>
+                    <td>
+                        ${m.isFamilyHead
+                            ? '<span style="display:inline-flex;align-items:center;padding:0.2rem 0.55rem;border-radius:999px;background:#d1fae5;color:#047857;font-size:0.75rem;font-weight:700;white-space:nowrap;">Family Head</span>'
+                            : (escapeHtml(relationship) || "Not Specified")}
+                    </td>
+
                     <td>${escapeHtml(m.gender) || "-"}</td>
 
                     <td>${escapeHtml(m.maritalStatus) || "-"}</td>
